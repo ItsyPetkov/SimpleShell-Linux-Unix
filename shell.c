@@ -1,11 +1,16 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
 void displayPrompt();
 void readInput();
-void terminateCheck();
-void parseInput();
+void exitCheck(char *input);
+void parseInput(char *input);
+void externalCommandexec(char *input);
+void runShell(char *input);
 
 int terminate = 0;
 
@@ -18,39 +23,59 @@ void displayPrompt(){
 	while (terminate == 0){
 		printf(">");
 		readInput();
-	}
-	
-			
+	}		
 }
 
 void readInput(){
 	char input[512];
-    if (fgets(input,512,stdin)==NULL){
-        exit(0);
-    }
-	terminateCheck(input);
-	if(terminate == 1){
-		exit(0);
-	}
-	parseInput(input);
-
+    	if (fgets(input,512,stdin)==NULL){
+        	exit(0);
+    	}
+	runShell(input);
 }
 
-void terminateCheck(char *input){
-    if(strncmp(input, "exit", 4)==0){
-        terminate=1;
-    }else{
-        terminate=0;
-    }
+void exitCheck(char *input){
+	if(strncmp(input, "exit", 4)==0){
+		exit(0);
+	}
 }
 
 void parseInput(char *input){
-	char del[2]=" ";
 	char *token;
-	token=strtok(input,del);
+	token=strtok(input," |><&\t;");
 	printf("Tokens\n");
 	while(token != NULL){
-		printf("%s, " ,token);
-		token = strtok(NULL,del);
+		printf("'%s' " ,token);
+		token = strtok(NULL," |><&\t;");
+	}
+}
+
+void runShell(char *input){
+	exitCheck(input);
+	if(input[0] != '\n'){
+		parseInput(input);
+	}
+	//externalCommandexec(input);
+
+}
+
+void externalCommandexec(char *input){
+	char * args[3];	
+	args[0] = "/bin/sh";
+	args[2] = NULL;
+
+	pid_t instruction;
+	instruction = fork();
+
+	if(instruction < 0){
+		fprintf(stderr, "Invalid Program! Fork Failed!");
+		exit(-1);
+	}
+	else if(instruction == 0){
+		execve(args[0], args, NULL);
+	}
+	else{
+		wait(NULL);
+		exit(0);
 	}
 }
