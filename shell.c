@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -30,7 +31,7 @@ void displayPrompt(){
 }
 
 void readInput(){
-	char input[BUUFER_SIZE];
+	char input[BUFFER_SIZE];
     	if (fgets(input,BUFFER_SIZE,stdin)==NULL){
         	exit(0);
     	}
@@ -64,22 +65,5 @@ void runShell(char *input){
 }
 
 void externalCommandexec(char *input){
-	char * args[3];	
-	args[0] = "/bin/sh";
-	args[2] = NULL;
-
-	pid_t instruction;
-	instruction = fork();
-
-	if(instruction < 0){
-		fprintf(stderr, "Invalid Program! Fork Failed!");
-		exit(-1);
-	}
-	else if(instruction == 0){
-		execve(args[0], args, NULL);
-	}
-	else{
-		wait(NULL);
-		exit(0);
-	}
+	
 }
