@@ -14,6 +14,7 @@ void externalCommandexec(char *input);
 void runShell(char *input);
 
 int terminate = 0;
+extern char **environ;
 
 int main(void){
 	displayPrompt();
