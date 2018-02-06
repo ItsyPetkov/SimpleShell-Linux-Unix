@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
+#define BUFFER_SIZE 512
 
 void displayPrompt();
 void readInput();
@@ -29,8 +30,8 @@ void displayPrompt(){
 }
 
 void readInput(){
-	char input[512];
-    	if (fgets(input,512,stdin)==NULL){
+	char input[BUUFER_SIZE];
+    	if (fgets(input,BUFFER_SIZE,stdin)==NULL){
         	exit(0);
     	}
 	runShell(input);
