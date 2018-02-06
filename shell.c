@@ -43,12 +43,13 @@ void exitCheck(char *input){
 
 void parseInput(char *input){
 	char *token;
-	token=strtok(input," |><&\t;");
+	token=strtok(input," |><&\t\n;");
 	printf("Tokens\n");
 	while(token != NULL){
 		printf("'%s' " ,token);
-		token = strtok(NULL," |><&\t;");
+		token = strtok(NULL," |><&\t\n;");
 	}
+	printf("\n");
 }
 
 void runShell(char *input){
