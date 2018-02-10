@@ -12,7 +12,7 @@ void displayPrompt();
 void readInput();
 void exitCheck(char *input);
 void parseInput(char *input);
-void externalCommandexec(char *input);
+void externalCommandexec(char * tokens[50]);
 void runShell(char *input);
 
 int terminate = 0;
@@ -45,14 +45,19 @@ void exitCheck(char *input){
 }
 
 void parseInput(char *input){
+	int position=0;
 	char *token;
+	char * tokenarray[50];
 	token=strtok(input," |><&\t\n;");
-	printf("Tokens\n");
 	while(token != NULL){
-		printf("'%s' " ,token);
+		tokenarray[position]=token;
 		token = strtok(NULL," |><&\t\n;");
+		position++;
 	}
-	printf("\n");
+	for(int i=position;i<50;i++){
+		tokenarray[i]=NULL;
+	}
+	externalCommandexec(tokenarray);	
 }
 
 void runShell(char *input){
@@ -60,23 +65,24 @@ void runShell(char *input){
 	if(input[0] != '\n'){
 		parseInput(input);
 	}
-	externalCommandexec(input);
-
 }
 
-void externalCommandexec(char *input){
-	char * args[2];	
+void externalCommandexec(char * tokens[50]){
 	pid_t  pid;
  	pid = fork();
 	
-	args[0]="ls";
-	args[1]=NULL;
+	if (pid < 0){
+		printf("ERROR!! Child Process could not be created\n");
+	}
  	if (pid == 0){
-		execvp(args[0],args);
+		if(execvp(tokens[0],tokens)==-1){
+			printf("bash: %s : command not found\n", tokens[0]);
+			kill(getpid(),SIGTERM);
+		}
 	}else{
 		wait(NULL);
-		exit(0);
 	}
     		
-
 }
+
+
