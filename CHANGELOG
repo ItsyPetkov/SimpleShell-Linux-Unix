@@ -8,3 +8,5 @@ v2 : Phase 1 completed and tested
 v3 : Phase 2 completed and tested
 
 v4 : Phase 3&4 completed.
+
+v5 : Some errors in shell. perror() to be fixed.
