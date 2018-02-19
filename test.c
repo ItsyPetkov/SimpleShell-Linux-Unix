@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -8,12 +7,6 @@
 #include <sys/wait.h>
 
 #define BUFFER_SIZE 512
-
-/* exits
-parameter
-perror
-error checkinh
-adjust error messages*/
 
 void parseInput(char *input);
 void externalCommandexec(char * tokens[]);
@@ -28,9 +21,8 @@ void changeDirectory(char * tokens[]);
 
 char* path;
 const char* home;
-extern char **environ;
 
-
+/* */
 int main(void){
 	setHome();
 	runShell();
@@ -58,7 +50,7 @@ void parseInput(char *input){
 	
 }
 
-/*runShell() displays >, ta*/
+/*runShell() displays >*/
 void runShell(){
 	char input[BUFFER_SIZE];
 	int terminate = 0;
@@ -78,15 +70,17 @@ void runShell(){
 	
 }
 
+/* */
 void externalCommandexec(char * tokens[]){
 	pid_t  pid;
  	pid = fork();
 	if (pid < 0){
-		printf("ERROR!! Child Process could not be created\n");
+		errno=ECHILD;
+		perror("ERROR");
 	}
  	if (pid == 0){
 		if(execvp(tokens[0],tokens)==-1){
-			perror("Command not found");
+			perror(tokens[0]);
 		}
 	}else{
 		wait(NULL);
@@ -94,12 +88,14 @@ void externalCommandexec(char * tokens[]){
     		
 }
 
+/* */
 void getPath() {
     char *currpath = getenv("PATH");
     printf("PATH : %s\n", currpath);
     
 }
 
+/* */
 void setPath(char *path) {
     if (setenv("PATH", path, 1) == 0) {
         printf("PATH : %s\n", getenv("PATH"));
@@ -108,10 +104,12 @@ void setPath(char *path) {
     }
 }
 
+/* */
 void restorePath() {
     setPath(path);
 }
 
+/* */
 void setHome() {
     char directory[512];
     path = getenv("PATH");
@@ -121,12 +119,12 @@ void setHome() {
     if (chdir(home) == 0) {
         printf("HOME : %s\n", getcwd(directory, sizeof(directory)));
     } else {
-        printf("chdir() error.\n");
+        printf("chdir() error.\n");	//fix
     }
 
 }
 
-
+/* */
 void commandCheck(char * tokens[]){
 	
 	/*Calls the function getPath() if correct arguments are provided else displays error*/
@@ -135,7 +133,7 @@ void commandCheck(char * tokens[]){
 			getPath();
 		}else{
 			errno=EINVAL;
-			perror("The command getpath was used with invalid parameters");
+			perror(tokens[0]);
 		}
 	}
 
@@ -145,7 +143,7 @@ void commandCheck(char * tokens[]){
 			setPath(tokens[1]);
 		}else{
 			errno=EINVAL;
-			perror("The command setpath was used with invalid parameters");
+			perror(tokens[0]);
 		}
 	}
 	
@@ -162,22 +160,23 @@ void commandCheck(char * tokens[]){
 			exit(0);
 		}else{
 			errno=EINVAL;
-			perror("The command exit was used with invalid parameters");
+			perror(tokens[0]);
 		}
 
 	}
 		
-	
+	/* */
 	else{
 		externalCommandexec(tokens);	
 	}
 }
 
+/* */
 void changeDirectory(char * tokens[]){
 	if(tokens[1]==NULL){
 		chdir(home);
 	}else if(chdir(tokens[1])==-1){
-		perror("There is no such Directory");
+		perror(tokens[1]);
 	}
 }
 
