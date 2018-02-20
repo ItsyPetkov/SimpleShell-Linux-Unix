@@ -72,6 +72,8 @@ void runShell(){
 			restorePath();
         		exit(0);
     		}
+
+		
 		
 		createHistory(input);
 
@@ -96,6 +98,7 @@ void externalCommandexec(char * tokens[]){
 		}
 	}else{
 		wait(NULL);
+		exit(0);
 	}
     		
 }
