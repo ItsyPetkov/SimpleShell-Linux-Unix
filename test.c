@@ -1,14 +1,13 @@
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <errno.h>
 #include <sys/wait.h>
 
 #define BUFFER_SIZE 512
 
-void exitCheck(char *input);
 void parseInput(char *input);
 void externalCommandexec(char * tokens[]);
 void runShell();
@@ -16,28 +15,31 @@ void changeDirectory(char * tokens[]);
 void setPath(char *path) ;
 void getPath();
 void restorePath();
-void startShell();
 void setHome(); 
 void commandCheck(char * tokens[]);
 void changeDirectory(char * tokens[]);
+void createHistory(char * input);
+void printHistory();
 
-int terminate = 0;
 char* path;
 const char* home;
-extern char **environ;
+int count = 0;
 
+struct hist {
+	int commandNumber;
+	char string[BUFFER_SIZE];
+};
+
+struct hist history[20];
+
+/* */
 int main(void){
-	startShell();
+	setHome();
 	runShell();
 	return 0;
 }
 
-void exitCheck(char *input){
-	if(strncmp(input, "exit", 4)==0){
-		exit(0);
-	}
-}
-
+/*parseInput() is a function to parse the string into an array*/
 void parseInput(char *input){
 	int position=0;
 	char *token;
@@ -58,16 +60,21 @@ void parseInput(char *input){
 	
 }
 
+/*runShell() displays >*/
 void runShell(){
 	char input[BUFFER_SIZE];
+	int terminate = 0;
 	while (terminate == 0){
 		printf(">");
 		memset(input,'\0',BUFFER_SIZE);
 		if (fgets(input,BUFFER_SIZE,stdin)==NULL){
 			printf("\n");
+			restorePath();
         		exit(0);
     		}
-		exitCheck(input);
+		
+		createHistory(input);
+
 		if(input[0] != '\n'){
 			parseInput(input);
 		}
@@ -75,16 +82,17 @@ void runShell(){
 	
 }
 
+/* */
 void externalCommandexec(char * tokens[]){
 	pid_t  pid;
  	pid = fork();
 	if (pid < 0){
-		printf("ERROR!! Child Process could not be created\n");
+		errno=ECHILD;
+		perror("ERROR");
 	}
  	if (pid == 0){
 		if(execvp(tokens[0],tokens)==-1){
-			printf("bash: %s : command not found\n", tokens[0]);
-			kill(getpid(),SIGTERM);
+			perror(tokens[0]);
 		}
 	}else{
 		wait(NULL);
@@ -92,12 +100,14 @@ void externalCommandexec(char * tokens[]){
     		
 }
 
+/* */
 void getPath() {
     char *currpath = getenv("PATH");
     printf("PATH : %s\n", currpath);
     
 }
 
+/* */
 void setPath(char *path) {
     if (setenv("PATH", path, 1) == 0) {
         printf("PATH : %s\n", getenv("PATH"));
@@ -106,10 +116,12 @@ void setPath(char *path) {
     }
 }
 
+/* */
 void restorePath() {
     setPath(path);
 }
 
+/* */
 void setHome() {
     char directory[512];
     path = getenv("PATH");
@@ -119,42 +131,81 @@ void setHome() {
     if (chdir(home) == 0) {
         printf("HOME : %s\n", getcwd(directory, sizeof(directory)));
     } else {
-        printf("chdir() error.\n");
+        printf("chdir() error.\n");	//fix
     }
 
 }
 
-void startShell(){
-	setHome();
-	//setPath(path);
-	//restorePath();
-}
-
+/* */
 void commandCheck(char * tokens[]){
 	
+	/*Calls the function getPath() if correct arguments are provided else displays error*/
 	if(strcmp(tokens[0],"getpath")==0){
-		getPath();
+		if (tokens[1]==NULL){
+			getPath();
+		}else{
+			errno=EINVAL;
+			perror(tokens[0]);
+		}
 	}
 
+	/*Calls the function setPath() if correct arguments are provided else displays error*/
 	else if(strcmp(tokens[0],"setpath")==0){
-		setPath(tokens[1]);
+		if (tokens[1]!=NULL && tokens[2]==NULL){
+			setPath(tokens[1]);
+		}else{
+			errno=EINVAL;
+			perror(tokens[0]);
+		}
 	}
-
+	
+	/*Calls the function changeDirectory() with the token array*/
 	else if(strcmp(tokens[0],"cd")==0){
 		changeDirectory(tokens);
 	}
-	
+
+	/*Checks whether first command is exit and if there are appropriate parameter*/
+	else if(strcmp(tokens[0],"exit")==0){
+		if(tokens[1]==NULL){
+			restorePath();
+			exit(0);
+		}else{
+			errno=EINVAL;
+			perror(tokens[0]);
+		}
+
+	}
+
+	else if(strcmp(tokens[0], "history") == 0){
+		printHistory();
+	}
+		
+	/* */
 	else{
 		externalCommandexec(tokens);	
 	}
 }
 
-void changeDirectory(char * tokens[]){
+/* */
+void changeDirectory(char *tokens[]){
 	if(tokens[1]==NULL){
 		chdir(home);
-	}else if(chdir(tokens[1])==0){
-		char directory[512];
-		printf("Directory : %s\n", getcwd(directory, sizeof(directory)));
+	}else if(chdir(tokens[1])==-1){
+		perror(tokens[1]);
+	}
+}
+
+void createHistory(char * input){
+	if(strncmp(input,"history",7)!=0){
+	strcpy(history[count].string, input);
+	history[count].commandNumber = history[count-1].commandNumber + 1;
+	count=(count+1)%20;
+	}
+}
+
+void printHistory(){
+	for(int i = 0; i < 20; i++){
+		printf("%d . %s \n", history[i].commandNumber, history[i].string);
 	}
 }
 
