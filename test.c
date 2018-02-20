@@ -24,6 +24,7 @@ void printHistory();
 char* path;
 const char* home;
 int count = 0;
+int historycount=0;
 
 struct hist {
 	int commandNumber;
@@ -73,9 +74,9 @@ void runShell(){
         		exit(0);
     		}
 
-		
-		
-		createHistory(input);
+		if(strncmp(input,"history",7)!=0){
+			createHistory(input);
+		}
 
 		if(input[0] != '\n'){
 			parseInput(input);
@@ -95,10 +96,11 @@ void externalCommandexec(char * tokens[]){
  	if (pid == 0){
 		if(execvp(tokens[0],tokens)==-1){
 			perror(tokens[0]);
+			kill(getpid(),SIGTERM);
 		}
 	}else{
 		wait(NULL);
-		exit(0);
+		
 	}
     		
 }
@@ -199,16 +201,14 @@ void changeDirectory(char *tokens[]){
 }
 
 void createHistory(char * input){
-	if(strncmp(input,"history",7)!=0){
-	strcpy(history[count].string, input);
-	history[count].commandNumber = history[count-1].commandNumber + 1;
-	count=(count+1)%20;
-	}
+		strcpy(history[count].string, input);
+		history[count].commandNumber = historycount++;
+		count=(count+1)%20;
 }
 
 void printHistory(){
 	for(int i = 0; i < 20; i++){
-		printf("%d . %s \n", history[i].commandNumber, history[i].string);
+		printf("%d %s", history[i].commandNumber, history[i].string);
 	}
 }
 
