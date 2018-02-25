@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/wait.h>
+#include <math.h>
 
 #define BUFFER_SIZE 512
 
@@ -20,6 +21,7 @@ void commandCheck(char * tokens[]);
 void changeDirectory(char * tokens[]);
 void createHistory(char * input);
 void printHistory();
+void executeHistory(int commandNum);
 
 char* path;
 const char* home;
@@ -52,13 +54,13 @@ void parseInput(char *input){
 		token = strtok(NULL," |><&\t\n;");
 		position++;
 	}
-
+    
 	for(int i=position;i<50;i++){
 		tokenarray[i]=NULL;
 	}
-
-	commandCheck(tokenarray);
-	
+    if (tokenarray[0] != NULL) {
+        commandCheck(tokenarray);
+    }
 }
 
 /*runShell() displays >*/
@@ -74,11 +76,11 @@ void runShell(){
         		exit(0);
     		}
 
-		if(strncmp(input,"history",7)!=0){
+		if(strncmp(input,"history",7)!=0 && (input[0] != '\n')){
 			createHistory(input);
 		}
 
-		if(input[0] != '\n'){
+		if(input[0] != '\n') {
 			parseInput(input);
 		}
 	}
@@ -180,6 +182,21 @@ void commandCheck(char * tokens[]){
 		}
 
 	}
+    
+    else if(tokens[0][0] == '!'){
+        long size = strlen(tokens[0]);
+        int sum = 0;
+        
+        for (int i = 1; i < size; i++) {
+            
+            int temp = tokens[0][i] - '0';
+            int power = pow(10, size-i-1);
+            sum += temp * power;
+            temp = 0;
+            power = 0;
+        }
+        executeHistory(sum);
+    }
 
 	else if(strcmp(tokens[0], "history") == 0){
 		printHistory();
@@ -202,13 +219,29 @@ void changeDirectory(char *tokens[]){
 
 void createHistory(char * input){
 		strcpy(history[count].string, input);
-		history[count].commandNumber = historycount++;
+		history[count].commandNumber = historycount+1;
+        historycount++;
 		count=(count+1)%20;
 }
 
 void printHistory(){
-	for(int i = 0; i < 20; i++){
-		printf("%d %s", history[i].commandNumber, history[i].string);
+	for(int i = count; i < 20; i++){
+        if (history[i].commandNumber != 0) {
+            printf("%d %s", history[i].commandNumber, history[i].string);
+        }
 	}
+    for (int i = 0;i < count; i++) {
+        if (history[i].commandNumber != 0) {
+            printf("%d %s", history[i].commandNumber, history[i].string);
+        }
+    }
+}
+
+void executeHistory(int commandNum){
+    for(int i = 0; i < 20; i++){
+        if(history[i].commandNumber == commandNum){
+            parseInput(history[i].string);
+        }
+    }
 }
 
