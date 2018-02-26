@@ -247,7 +247,7 @@ void commandCheck(char * tokens[]){
 	}
 }
 
-/* */
+/* changeDirectory() changes the directory according to the user input */
 void changeDirectory(char *tokens[]){
 	if(tokens[1]==NULL){
 		chdir(home);
@@ -256,7 +256,7 @@ void changeDirectory(char *tokens[]){
 	}
 }
 
-/* */
+/* createHistory() takes an input and stores it in the array of structs */
 void createHistory(char * input){
 		strcpy(history[count].string, input);
 		history[count].commandNumber = historycount+1;
@@ -264,7 +264,7 @@ void createHistory(char * input){
 		count=(count+1)%20;
 }
 
-/* */
+/* printHistory() is function which contents of the array of structs */
 void printHistory(){
 	for(int i = count; i < 20; i++){
 		if (history[i].commandNumber != 0) {
@@ -278,7 +278,7 @@ void printHistory(){
     	}
 }
 
-/* */
+/* executeHistory() is a function that takes a commandNum and executes the commandNum from history*/
 void executeHistory(int commandNum){
     for(int i = 0; i < 20; i++){
         if(history[i].commandNumber == commandNum){
@@ -287,7 +287,7 @@ void executeHistory(int commandNum){
     }
 }
 
-/* */
+/* getSum calculates the integer value of number in !<number> and returns it */
 int getSum(char *tokens[], int a){
 	int sum=0;
 	for (int i = a; i < strlen(tokens[0]); i++) {
@@ -300,7 +300,7 @@ int getSum(char *tokens[], int a){
 	return sum;
 }
 
-/* */
+/* getPow() is a function which takes two parameters int a and int b and returns a^b */
 int getPow(int a, int b){
 	int finalNum = 1;
 	for(int i=0;i<b;i++){
@@ -309,7 +309,7 @@ int getPow(int a, int b){
 	return finalNum;
 }
 
-/* */
+/* isDigit() checks whether the given char array is an array and returns 1 if is a digit and 0 if is not a digit */
 int isDigit(char * tokens[]){
 	int isdigit=0;
 	for(int i=1;i<strlen(tokens[0]);i++){
