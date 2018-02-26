@@ -22,6 +22,9 @@ void changeDirectory(char * tokens[]);
 void createHistory(char * input);
 void printHistory();
 void executeHistory(int commandNum);
+int getSum(char *tokens[], int a);
+int getPow(int a, int b);
+int isDigit(char *tokens[]);
 
 char* path;
 const char* home;
@@ -76,7 +79,7 @@ void runShell(){
         		exit(0);
     		}
 
-		if(strncmp(input,"history",7)!=0 && (input[0] != '\n')){
+		if(strcspn(input,"!")!=0 && (input[0] != '\n')){
 			createHistory(input);
 		}
 
@@ -183,19 +186,31 @@ void commandCheck(char * tokens[]){
 
 	}
     
-    else if(tokens[0][0] == '!'){
-        long size = strlen(tokens[0]);
-        int sum = 0;
-        
-        for (int i = 1; i < size; i++) {
-            
-            int temp = tokens[0][i] - '0';
-            int power = pow(10, size-i-1);
-            sum += temp * power;
-            temp = 0;
-            power = 0;
-        }
-        executeHistory(sum);
+    else if(strcspn(tokens[0],"!")==0){
+		
+		if(tokens[0][1]=='-'){
+			if(isDigit(tokens)==1){
+				int sum = getSum(tokens,2);
+				executeHistory(historycount-sum);
+			}else{
+				printf("Not a Digit");
+			}
+		}
+
+		if(tokens[0][1]=='!'){
+			executeHistory(historycount);
+		}
+
+		
+		else{
+			if(isDigit(tokens)==1){
+				int sum = getSum(tokens,1);
+				executeHistory(sum);
+			}else{
+				printf("Not a Digit");
+			}
+		}
+
     }
 
 	else if(strcmp(tokens[0], "history") == 0){
@@ -245,3 +260,34 @@ void executeHistory(int commandNum){
     }
 }
 
+int getSum(char *tokens[], int a){
+	int sum=0;
+	for (int i = a; i < strlen(tokens[0]); i++) {
+		int temp = tokens[0][i] - '0';
+		int power = getPow(10, strlen(tokens[0])-i-1);
+		sum += temp * power;
+		temp = 0;
+		power = 0;
+        }
+	return sum;
+}
+
+int getPow(int a, int b){
+	int finalNum = 1;
+	for(int i=0;i<b;i++){
+		finalNum = finalNum * a;
+	}
+	return finalNum;
+}
+
+int isDigit(char * tokens[]){
+	int isdigit=0;
+	for(int i=1;i<strlen(tokens[0]);i++){
+		if(tokens[0][i]>='0' && tokens[0][i]<='9'){
+			isdigit=1;
+		}else{
+			isdigit=0;
+		}
+	}
+	return isdigit;
+}
