@@ -278,12 +278,12 @@ void printHistory(){
 			small=history[i].commandNumber;
 		}
 	}
-	for(int i = small; i < 20; i++){
+	for(int i = small-1; i < 20; i++){
 		if (history[i].commandNumber != 0) {
 			printf("%d %s", history[i].commandNumber, history[i].string);
         	}
 	}
-	for (int i = 0;i < small; i++) {
+	for (int i = 0;i < small-1; i++) {
         	if (history[i].commandNumber != 0) {
             		printf("%d %s", history[i].commandNumber, history[i].string);
         	}
@@ -362,8 +362,6 @@ void addtoHistory(char * input){
 void saveHistory(){
 	FILE *file = fopen(".hist_list","w+");
 	int i = 0;
-	
-	
 	for(i = 0; i<20; i++){
 		fprintf(file, "%d %s", history[i].commandNumber, history[i].string);
 	}
@@ -379,20 +377,14 @@ void loadHistory(){
 		printf("File not present. Creating new file...");
 	}
 	else{
-		
 		while(1){
-			
 			if(fgets(string, BUFFER_SIZE , file)==NULL){
 				break;
 			}
-
-
-				addtoHistory(string);
-				
+			addtoHistory(string);	
 		}
-				fclose(file);
+		fclose(file);
 	}
-	
 }
 
 
