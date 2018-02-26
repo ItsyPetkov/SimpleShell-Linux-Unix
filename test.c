@@ -24,6 +24,10 @@ void executeHistory(int commandNum);
 int getSum(char *tokens[], int a);
 int getPow(int a, int b);
 int isDigit(char *tokens[]);
+void saveHistory();
+void loadHistory();
+void addtoHistory(char * input);
+int getNum(char *token, int a);
 
 char* path;
 const char* home;
@@ -40,6 +44,7 @@ struct hist history[20];
 /* main() calls the method setHome() and runShell() */
 int main(void){
 	setHome();
+	loadHistory();
 	runShell();
 	return 0;
 }
@@ -75,8 +80,8 @@ void runShell(){
 		if (fgets(input,BUFFER_SIZE,stdin)==NULL){
 			printf("\n");
 			restorePath();
-        		exit(0);
-    		}
+        	exit(0);
+    	}
 
 		if(strcspn(input,"!")!=0 && (input[0] != '\n')){
 			createHistory(input);
@@ -179,6 +184,7 @@ void commandCheck(char * tokens[]){
 	/* Checks whether first command is exit and if there are appropriate parameter */
 	else if(strcmp(tokens[0],"exit")==0){
 		if(tokens[1]==NULL){
+			saveHistory();
 			restorePath();
 			exit(0);
 		}else{
@@ -260,18 +266,24 @@ void changeDirectory(char *tokens[]){
 void createHistory(char * input){
 		strcpy(history[count].string, input);
 		history[count].commandNumber = historycount+1;
-       		historycount++;
+       	historycount++;
 		count=(count+1)%20;
 }
 
 /* printHistory() is function which contents of the array of structs */
 void printHistory(){
-	for(int i = count; i < 20; i++){
+	int small=history[0].commandNumber;
+	for(int i=0;i<20;i++){
+		if(history[i].commandNumber<small){
+			small=history[i].commandNumber;
+		}
+	}
+	for(int i = small; i < 20; i++){
 		if (history[i].commandNumber != 0) {
 			printf("%d %s", history[i].commandNumber, history[i].string);
         	}
 	}
-	for (int i = 0;i < count; i++) {
+	for (int i = 0;i < small; i++) {
         	if (history[i].commandNumber != 0) {
             		printf("%d %s", history[i].commandNumber, history[i].string);
         	}
@@ -300,6 +312,18 @@ int getSum(char *tokens[], int a){
 	return sum;
 }
 
+int getNum(char *token, int a){
+	int sum=0;
+	for (int i = a; i < strlen(token); i++) {
+		int temp = token[i] - '0';
+		int power = getPow(10, strlen(token)-i-1);
+		sum += temp * power;
+		temp = 0;
+		power = 0;
+        }
+	return sum;
+}
+
 /* getPow() is a function which takes two parameters int a and int b and returns a^b */
 int getPow(int a, int b){
 	int finalNum = 1;
@@ -321,3 +345,55 @@ int isDigit(char * tokens[]){
 	}
 	return isdigit;
 }
+
+void addtoHistory(char * input){
+	if(input!=NULL){
+		char * commandnum = strtok(input," ");
+		int cn = getNum(commandnum,0);
+		char * str = strtok(NULL," ");
+		strcpy(history[count].string, str);
+		history[count].commandNumber = cn;
+		historycount=cn;
+		count=(count+1)%20;
+	}
+	
+}
+
+void saveHistory(){
+	FILE *file = fopen(".hist_list","w+");
+	int i = 0;
+	
+	
+	for(i = 0; i<20; i++){
+		fprintf(file, "%d %s", history[i].commandNumber, history[i].string);
+	}
+
+	fclose(file);
+}
+
+
+void loadHistory(){
+	FILE *file ;
+	char string[BUFFER_SIZE];
+	if((file = fopen(".hist_list", "r")) == NULL){
+		printf("File not present. Creating new file...");
+	}
+	else{
+		
+		while(1){
+			
+			if(fgets(string, BUFFER_SIZE , file)==NULL){
+				break;
+			}
+
+
+				addtoHistory(string);
+				
+		}
+				fclose(file);
+	}
+	
+}
+
+
+
