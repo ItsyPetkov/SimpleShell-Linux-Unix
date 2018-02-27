@@ -21,13 +21,16 @@ void changeDirectory(char * tokens[]);
 void createHistory(char * input);
 void printHistory();
 void executeHistory(int commandNum);
-int getSum(char *tokens[], int a);
 int getPow(int a, int b);
 int isDigit(char *tokens[]);
 void saveHistory();
 void loadHistory();
 void addtoHistory(char * input);
 int getNum(char *token, int a);
+int commandExists(int commandno);
+void errorMessage(char * token, int eno);
+void startShell();
+void endShell();
 
 char* path;
 const char* home;
@@ -43,8 +46,7 @@ struct hist history[20];
 
 /* main() calls the method setHome() and runShell() */
 int main(void){
-	setHome();
-	loadHistory();
+	startShell();
 	runShell();
 	return 0;
 }
@@ -79,9 +81,8 @@ void runShell(){
 		memset(input,'\0',BUFFER_SIZE);
 		if (fgets(input,BUFFER_SIZE,stdin)==NULL){
 			printf("\n");
-			restorePath();
-        	exit(0);
-    	}
+			endShell();
+    		}
 
 		if(strcspn(input,"!")!=0 && (input[0] != '\n')){
 			createHistory(input);
@@ -159,9 +160,7 @@ void commandCheck(char * tokens[]){
 		if (tokens[1]==NULL){
 			getPath();
 		}else{
-			errno=EINVAL;
-			perror(tokens[0]);
-			printf("Please use getpath without parameters. Use: getpath.\n");
+			errorMessage(tokens[0],5);
 		}
 	}
 
@@ -170,27 +169,25 @@ void commandCheck(char * tokens[]){
 		if (tokens[1]!=NULL && tokens[2]==NULL){
 			setPath(tokens[1]);
 		}else{
-			errno=EINVAL;
-			perror(tokens[0]);
-			printf("Please use setpath with only one parameter. Use: setpath <path>.\n");
+			errorMessage(tokens[0],6);
 		}
 	}
 	
 	/* Calls the function changeDirectory() with the token array */
 	else if(strcmp(tokens[0],"cd")==0){
-		changeDirectory(tokens);
+		if(tokens[2]==NULL){
+			changeDirectory(tokens);
+		}else{
+			errorMessage(tokens[0],7);
+		}	
 	}
 
 	/* Checks whether first command is exit and if there are appropriate parameter */
 	else if(strcmp(tokens[0],"exit")==0){
 		if(tokens[1]==NULL){
-			saveHistory();
-			restorePath();
-			exit(0);
+			endShell();
 		}else{
-			errno=EINVAL;
-			perror(tokens[0]);
-			printf("Please use exit without any parameters. Use: exit.\n");
+			errorMessage(tokens[0],8);
 		}
 
 	}
@@ -201,37 +198,56 @@ void commandCheck(char * tokens[]){
 		/* checks if the second token is - */
 		if(tokens[0][1]=='-'){
 			if(isDigit(tokens)==1){
-				int sum = getSum(tokens,2);
-				executeHistory(historycount-sum);
+				if(tokens[1]==NULL){
+					int sum = getNum(tokens[0],2);
+					if(commandExists(sum)==1){
+						executeHistory(historycount-sum);
+					}else{
+						errorMessage(tokens[0],2);
+					}
+				}else{
+					errorMessage(tokens[0],2);
+				}
 			}else{
-				errno=EINVAL;
-				perror(tokens[0]);
-				printf("Please use !<no> or !-<no> or !!.\n");
+				errorMessage(tokens[0],2);
 			}
 		}
 
 		/* checks if the second token is ! */
 		else if(tokens[0][1]=='!'){
-			executeHistory(historycount);
+			if(tokens[1]==NULL){
+				if(historycount>0){
+					executeHistory(historycount);
+				}else{
+					errorMessage(tokens[0],4);
+				}
+			}else{
+				errorMessage(tokens[0],3);
+			}
+				
 		}
 
 		/* checks if the second token is NULL */
 		else if (tokens[0][1]=='\0'){
-			errno=EINVAL;
-				perror(tokens[0]);
-				printf("Please use !<no> or !-<no> or !!.\n");
+			errorMessage(tokens[0],1);
 		}
 
 		else{
 			if(isDigit(tokens)==1){
-				int sum = getSum(tokens,1);
-				executeHistory(sum);
+				if(tokens[1]==NULL){
+					int sum = getNum(tokens[0],1);
+					if(commandExists(sum)==1){
+						executeHistory(sum);
+					}else{
+						errorMessage(tokens[0],1);
+					}
+				}else{
+					errorMessage(tokens[0],1);
+				}
 			}else{
-				errno=EINVAL;
-				perror(tokens[0]);
-				printf("Please use !<no> or !-<no> or !!.\n");
+				errorMessage(tokens[0],1);
 			}
-		}
+		}	
 
     	}
 
@@ -240,9 +256,7 @@ void commandCheck(char * tokens[]){
 		if(tokens[1]==NULL){
 			printHistory();
 		}else{
-			errno=EINVAL;
-			perror(tokens[0]);
-			printf("Please use history without any parameters. Use: history.\n");
+			errorMessage(tokens[0],9);
 		}
 		
 	}
@@ -266,7 +280,7 @@ void changeDirectory(char *tokens[]){
 void createHistory(char * input){
 		strcpy(history[count].string, input);
 		history[count].commandNumber = historycount+1;
-       	historycount++;
+       		historycount++;
 		count=(count+1)%20;
 }
 
@@ -281,11 +295,17 @@ void printHistory(){
 	for(int i = small-1; i < 20; i++){
 		if (history[i].commandNumber != 0) {
 			printf("%d %s", history[i].commandNumber, history[i].string);
+			if(strchr(history[i].string, '\n') == NULL){
+				printf("\n");	
+			}
         	}
 	}
 	for (int i = 0;i < small-1; i++) {
         	if (history[i].commandNumber != 0) {
             		printf("%d %s", history[i].commandNumber, history[i].string);
+			if(strchr(history[i].string, '\n') == NULL){
+				printf("\n");	
+			}
         	}
     	}
 }
@@ -299,19 +319,7 @@ void executeHistory(int commandNum){
     }
 }
 
-/* getSum calculates the integer value of number in !<number> and returns it */
-int getSum(char *tokens[], int a){
-	int sum=0;
-	for (int i = a; i < strlen(tokens[0]); i++) {
-		int temp = tokens[0][i] - '0';
-		int power = getPow(10, strlen(tokens[0])-i-1);
-		sum += temp * power;
-		temp = 0;
-		power = 0;
-        }
-	return sum;
-}
-
+/* getNum() is a function to get extract a number from a char pointer from a given index */
 int getNum(char *token, int a){
 	int sum=0;
 	for (int i = a; i < strlen(token); i++) {
@@ -346,6 +354,7 @@ int isDigit(char * tokens[]){
 	return isdigit;
 }
 
+/* addtoHistory() is a function that takes a char pointer and adds it to history */
 void addtoHistory(char * input){
 	if(input!=NULL){
 		char * commandnum = strtok(input," ");
@@ -359,17 +368,21 @@ void addtoHistory(char * input){
 	
 }
 
+/* saveHistory() is a function to save the history to a .hist_list file */
 void saveHistory(){
 	FILE *file = fopen(".hist_list","w+");
-	int i = 0;
-	for(i = 0; i<20; i++){
-		fprintf(file, "%d %s", history[i].commandNumber, history[i].string);
+	if(file==NULL){
+		return;
 	}
-
+	for(int i = 0; i<20; i++){
+		if(history[i].string!=NULL){
+			fprintf(file, "%d %s\n", history[i].commandNumber, history[i].string);
+		}
+	}
 	fclose(file);
 }
 
-
+/* loadHistory() is a function to load the history from the .hist_list file */
 void loadHistory(){
 	FILE *file ;
 	char string[BUFFER_SIZE];
@@ -387,5 +400,56 @@ void loadHistory(){
 	}
 }
 
+/* commandExists() is a function which checks whether a given number is a valid command in history*/
+int commandExists(int commandno){
+	int ret=0;
+	for(int i=0;i<20;i++){
+		if(history[i].commandNumber==commandno){
+			ret=1;
+		}
+	}
+	return ret;
+}
+
+/* histerror() is a function that takes in an error number and displays the appopriate error message for errors relating to commands starting with !*/
+void errorMessage(char * token, int eno){
+	errno=EINVAL;
+	perror(token);
+	switch(eno){
+		case 1:printf("Please use !<no> with a valid <no> and no parameters. Use: !<no>\n");
+		break;
+		case 2:printf("Please use !-<no> with a valid <no> and no parameters. Use: !-<no>\n");
+		break;
+		case 3:printf("Please use !! without any parameters. Use: !!\n");
+		break;
+		case 4:printf("No commands entered yet, Please enter atleast one command to use !!.\n");
+		break;
+		case 5:printf("Please use getpath without parameters. Use: getpath.\n");
+		break;
+		case 6:printf("Please use setpath with only one parameter. Use: setpath <path>.\n");
+		break;
+		case 7:printf("Please use cd with one parameter or no parameters. Use: cd or cd <directory>.\n");
+		break;
+		case 8:printf("Please use exit without any parameters. Use: exit.\n");
+		break;
+		case 9:printf("Please use history without any parameters. Use: history.\n");
+		break;
+	}
+}
+
+/* startShell() is a function that sets up by setting the working directory to home and loading the history the shell before runShell() */
+void startShell(){
+	setHome();
+	//loadHistory();
+}
+
+/* endShell() is a function that saves the history and restores the path to the original path while starting the shell */
+void endShell(){
+	//saveHistory();
+	restorePath();
+        exit(0);
+}
+
+/* Fix cd with no or one parameter and fix !! with parameter*/
 
 
