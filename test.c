@@ -33,6 +33,8 @@ void startShell();
 void endShell();
 void addAlias(char *tokens[]);
 void printAliases();
+void removeAlias(char *tokens[]);
+void shiftArray();
 
 char* path;
 const char* home;
@@ -46,8 +48,8 @@ struct hist {
 };
 
 struct alias {
-	char * aliasName;
-	char * aliasCommand;
+	char aliasName[BUFFER_SIZE];
+	char aliasCommand[BUFFER_SIZE];
 };
 
 struct hist history[20];
@@ -260,7 +262,7 @@ void commandCheck(char * tokens[]){
 
     	}
 
-	/* Checks whether first command is history and if there are appropriate parameter */
+	/* Checks whether first command is history and if there are appropriate parameters */
 	else if(strcmp(tokens[0], "history") == 0){
 		if(tokens[1]==NULL){
 			printHistory();
@@ -270,9 +272,8 @@ void commandCheck(char * tokens[]){
 		
 	}
 
-	/* */
+	/* Checks whether the first command is alias and if there are appropriate parameters */
 	else if(strcmp(tokens[0], "alias") == 0){
-		//create alias
 		if(tokens[1] == NULL || tokens[2] == NULL || tokens[3] != NULL){
 			errorMessage(tokens[0], 10);
 		}
@@ -280,11 +281,26 @@ void commandCheck(char * tokens[]){
 			addAlias(tokens);
 		}
 	}
-
-	else if(strcmp(tokens[0], "printalias") == 0){
-		printAliases();
+	
+	/* Checks whether the first command is printalias and if there are appropriate parameters. */
+	else if(strcmp(tokens[0], "printaliases") == 0){
+		if (tokens[1] != NULL) {
+			errorMessage(tokens[0], 12);
+		} else {
+			printAliases();
+		}	
 	}
 		
+	else if (strcmp(tokens[0], "unalias") == 0) {
+		if (tokens[1] == NULL || tokens[2] != NULL) {
+			errorMessage(tokens[0], 13);
+		
+		} else {
+			removeAlias(tokens);	
+		}
+	
+
+	}
 	/* If the command fails to be recognised as an inbuilt command externalCommandexec() is called with the command */
 	else{
 		externalCommandexec(tokens);	
@@ -469,6 +485,10 @@ void errorMessage(char * token, int eno){
 		break;
 		case 11:printf("Only 20 aliases allowed.Please unalias a command to alias a new command\n");
 		break;
+		case 12:printf("Please use printaliases without any parameters. Use: printaliases\n");
+		break;
+		case 13:printf("Please use unalias with a command that exists. Use: unalias <command>\n");
+		break;
 		default: printf("Invalid error number.\n");
 		break;
 	}
@@ -487,21 +507,54 @@ void endShell(){
         exit(0);
 }
 
+/* addAlias() is a function to add an alias to the array of alias struct */
 void addAlias(char *tokens[]){
-	if(aliasCount >= 20){
+	if(aliasCount > 20){
 		errorMessage(tokens[0], 11);
 	}
 	else{
-		strcpy(aliases[aliasCount].aliasName, tokens[1]);
-		strcpy(aliases[aliasCount].aliasCommand, tokens[2]);
+		strcpy(aliases[aliasCount].aliasName,tokens[1]);
+		strcpy(aliases[aliasCount].aliasCommand,tokens[2]);
 		aliasCount++;
 	}
 }
 
+/* printAliases() is a function that prints all the aliases in the array of alias structs */
 void printAliases(){
 	for(int i = 0; i < 20; i++){
-		if(aliases[i].aliasName != NULL){
-			printf("%s %s \n", aliases[i].aliasName, aliases[i].aliasCommand);
+		if(strcmp(aliases[i].aliasName, "\0")!=0&&strcmp(aliases[i].aliasCommand, "\0")!=0){
+		printf("%s %s\n" , aliases[i].aliasName, aliases[i].aliasCommand);
+	}
+	}
+}
+
+/* removeAlias() is a function that removes an alias. */
+void removeAlias(char *tokens[]) {
+	
+	for(int i = 0; i < 20; i++) {
+		if (strcmp(tokens[0], aliases[i].aliasCommand) == 0) {
+			strcpy(aliases[i].aliasName,"\0");
+			strcpy(aliases[i].aliasCommand,"\0");
+			shiftArray();
+			
 		}
 	}
 }
+
+void shiftArray(){
+	struct alias temp[20];
+	for(int i=0;i<20;i++){
+		if(strcmp(aliases[i].aliasName, "\0")!=0&&strcmp(aliases[i].aliasCommand, "\0")!=0){
+			strcpy(temp[i].aliasName,aliases[i].aliasName);
+			strcpy(temp[i].aliasCommand,aliases[i].aliasCommand);
+		}else{
+			i--;
+		}
+	}
+	for(int i=0;i<20;i++){
+		strcpy(aliases[i].aliasName,temp[i].aliasName);
+		strcpy(aliases[i].aliasCommand,temp[i].aliasCommand);
+	}
+	aliasCount--;
+}
+
