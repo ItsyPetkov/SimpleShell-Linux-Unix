@@ -31,18 +31,27 @@ int commandExists(int commandno);
 void errorMessage(char * token, int eno);
 void startShell();
 void endShell();
+void addAlias(char *tokens[]);
+void printAliases();
 
 char* path;
 const char* home;
 int count = 0;
-int historycount=0;
+int historycount = 0;
+int aliasCount = 0;
 
 struct hist {
 	int commandNumber;
 	char string[BUFFER_SIZE];
 };
 
+struct alias {
+	char * aliasName;
+	char * aliasCommand;
+};
+
 struct hist history[20];
+struct alias aliases[20];
 
 /* main() calls the method setHome() and runShell() */
 int main(void){
@@ -260,6 +269,21 @@ void commandCheck(char * tokens[]){
 		}
 		
 	}
+
+	/* */
+	else if(strcmp(tokens[0], "alias") == 0){
+		//create alias
+		if(tokens[1] == NULL || tokens[2] == NULL || tokens[3] != NULL){
+			errorMessage(tokens[0], 10);
+		}
+		else{
+			addAlias(tokens);
+		}
+	}
+
+	else if(strcmp(tokens[0], "printalias") == 0){
+		printAliases();
+	}
 		
 	/* If the command fails to be recognised as an inbuilt command externalCommandexec() is called with the command */
 	else{
@@ -441,6 +465,12 @@ void errorMessage(char * token, int eno){
 		break;
 		case 9:printf("Please use history without any parameters. Use: history.\n");
 		break;
+		case 10:printf("Please use alias with two parameters. Use: alias <name> <command>.\n");
+		break;
+		case 11:printf("Only 20 aliases allowed.Please unalias a command to alias a new command\n");
+		break;
+		default: printf("Invalid error number.\n");
+		break;
 	}
 }
 
@@ -457,4 +487,21 @@ void endShell(){
         exit(0);
 }
 
+void addAlias(char *tokens[]){
+	if(aliasCount >= 20){
+		errorMessage(tokens[0], 11);
+	}
+	else{
+		strcpy(aliases[aliasCount].aliasName, tokens[1]);
+		strcpy(aliases[aliasCount].aliasCommand, tokens[2]);
+		aliasCount++;
+	}
+}
 
+void printAliases(){
+	for(int i = 0; i < 20; i++){
+		if(aliases[i].aliasName != NULL){
+			printf("%s %s \n", aliases[i].aliasName, aliases[i].aliasCommand);
+		}
+	}
+}
