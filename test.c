@@ -200,7 +200,7 @@ void commandCheck(char * tokens[]){
 			if(isDigit(tokens)==1){
 				if(tokens[1]==NULL){
 					int sum = getNum(tokens[0],2);
-					if(commandExists(sum)==1){
+					if(commandExists(historycount-sum)==1){
 						executeHistory(historycount-sum);
 					}else{
 						errorMessage(tokens[0],2);
@@ -370,15 +370,22 @@ void addtoHistory(char * input){
 
 /* saveHistory() is a function to save the history to a .hist_list file */
 void saveHistory(){
-	FILE *file = fopen(".hist_list","w+");
+	chdir(home);
+	FILE *file = fopen(".hist_list","w");
 	if(file==NULL){
 		return;
 	}
-	for(int i = 0; i<20; i++){
+	for(int i = count; i<20; i++){
 		if(history[i].string!=NULL){
-			fprintf(file, "%d %s\n", history[i].commandNumber, history[i].string);
+			fprintf(file, "%s",history[i].string);
 		}
 	}
+	for(int i = 0; i < count; i++){
+		if(history[i].string!=NULL){
+			fprintf(file, "%s",history[i].string);
+		}
+	}
+	printf("Saving File\n");
 	fclose(file);
 }
 
@@ -387,14 +394,14 @@ void loadHistory(){
 	FILE *file ;
 	char string[BUFFER_SIZE];
 	if((file = fopen(".hist_list", "r")) == NULL){
-		printf("File not present. Creating new file...");
+		printf("File not present. Creating new file.\n");
 	}
 	else{
 		while(1){
 			if(fgets(string, BUFFER_SIZE , file)==NULL){
 				break;
 			}
-			addtoHistory(string);	
+			createHistory(string);	
 		}
 		fclose(file);
 	}
@@ -440,16 +447,14 @@ void errorMessage(char * token, int eno){
 /* startShell() is a function that sets up by setting the working directory to home and loading the history the shell before runShell() */
 void startShell(){
 	setHome();
-	//loadHistory();
+	loadHistory();
 }
 
 /* endShell() is a function that saves the history and restores the path to the original path while starting the shell */
 void endShell(){
-	//saveHistory();
+	saveHistory();
 	restorePath();
         exit(0);
 }
-
-/* Fix cd with no or one parameter and fix !! with parameter*/
 
 
