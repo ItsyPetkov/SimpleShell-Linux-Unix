@@ -493,7 +493,7 @@ void endShell(){
 	exit(0);
 }
 
-/* */
+/* addAlias() is a function which add an alias*/
 void addAlias(char * tokens[]){
 	if(aliasCount>=ALIAS_SIZE){
 		errorMessage(tokens[0],11);
@@ -509,7 +509,7 @@ void addAlias(char * tokens[]){
 	}
 }
 
-/* */
+/* printAiases() is a function which prints all the aliases*/
 void printAliases(){
 	for(int i=0;i<ALIAS_SIZE;i++){
 		if(checkNullAlias(i)==0){
@@ -518,7 +518,7 @@ void printAliases(){
 	}
 }
 
-/* */
+/* checkNullAlias() is a function which checks if the current alias is empty */
 int checkNullAlias(int index){
 	if(strcmp(aliases[index].aliasName,"\0")==0 && strcmp(aliases[index].aliasCommand,"\0")==0 ){
 		return 1;
@@ -526,7 +526,7 @@ int checkNullAlias(int index){
 	return 0;
 }
 
-/* */
+/* removeAlias() is a function which removes the chosen alias */
 void removeAlias(char *tokens[]) {
 	int index = checkAlias(tokens[1]);
 	if(index>=0){
@@ -548,7 +548,7 @@ int checkAlias(char * token){
 }
 
 
-/* */
+/* adjustAliasArray() is function which fixes the array after an alias is deleted by shifting everything after by on position backwards*/
 void adjustAliasArray(int index){
 
 	for(int i=index;i<aliasCount-1; i++){
