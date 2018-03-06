@@ -176,7 +176,7 @@ void commandCheck(char * tokens[]){
 		if (tokens[1]==NULL){
 			getPath();
 		}else{
-			errorMessage(tokens[0],5);
+			errorMessage(tokens[0],1);
 		}
 	}
 
@@ -185,7 +185,7 @@ void commandCheck(char * tokens[]){
 		if (tokens[1]!=NULL && tokens[2]==NULL){
 			setPath(tokens[1]);
 		}else{
-			errorMessage(tokens[0],6);
+			errorMessage(tokens[0],2);
 		}
 	}
 	
@@ -194,7 +194,7 @@ void commandCheck(char * tokens[]){
 		if(tokens[2]==NULL){
 			changeDirectory(tokens);
 		}else{
-			errorMessage(tokens[0],7);
+			errorMessage(tokens[0],3);
 		}	
 	}
 
@@ -203,7 +203,7 @@ void commandCheck(char * tokens[]){
 		if(tokens[1]==NULL){
 			endShell();
 		}else{
-			errorMessage(tokens[0],8);
+			errorMessage(tokens[0],4);
 		}
 
 	}
@@ -216,16 +216,16 @@ void commandCheck(char * tokens[]){
 			if(isDigit(tokens)==1){
 				if(tokens[1]==NULL){
 					int sum = getNum(tokens[0],2);
-					if(commandExists(historycount-sum)==1){
-						executeHistory(historycount-sum);
+					if(commandExists(historycount-sum+1)==1){
+						executeHistory(historycount-sum+1);
 					}else{
-						errorMessage(tokens[0],2);
+						errorMessage(tokens[0],6);
 					}
 				}else{
-					errorMessage(tokens[0],2);
+					errorMessage(tokens[0],5);
 				}
 			}else{
-				errorMessage(tokens[0],2);
+				errorMessage(tokens[0],5);
 			}
 		}
 
@@ -235,17 +235,17 @@ void commandCheck(char * tokens[]){
 				if(historycount>0){
 					executeHistory(historycount);
 				}else{
-					errorMessage(tokens[0],4);
+					errorMessage(tokens[0],8);
 				}
 			}else{
-				errorMessage(tokens[0],3);
+				errorMessage(tokens[0],7);
 			}
 				
 		}
 
 		/* checks if the second token is NULL */
 		else if (tokens[0][1]=='\0'){
-			errorMessage(tokens[0],1);
+			errorMessage(tokens[0],9);
 		}
 
 		else{
@@ -255,13 +255,13 @@ void commandCheck(char * tokens[]){
 					if(commandExists(sum)==1){
 						executeHistory(sum);
 					}else{
-						errorMessage(tokens[0],1);
+						errorMessage(tokens[0],10);
 					}
 				}else{
-					errorMessage(tokens[0],1);
+					errorMessage(tokens[0],9);
 				}
 			}else{
-				errorMessage(tokens[0],1);
+				errorMessage(tokens[0],9);
 			}
 		}	
 
@@ -272,7 +272,7 @@ void commandCheck(char * tokens[]){
 		if(tokens[1]==NULL){
 			printHistory();
 		}else{
-			errorMessage(tokens[0],9);
+			errorMessage(tokens[0],11);
 		}
 		
 	}
@@ -281,7 +281,15 @@ void commandCheck(char * tokens[]){
 	else if(strcmp(tokens[0], "alias") == 0){
 
 		if(tokens[1]!=NULL && tokens[2] == NULL){
-			errorMessage(tokens[0], 10);
+			errorMessage(tokens[0], 12);
+		} 
+		
+		else if(strcmp(tokens[1], tokens[2]) == 0 && tokens[3] == NULL) {
+			errorMessage(tokens[0], 13);
+		}
+
+		else if(tokens[1] != NULL && tokens[2] != NULL && tokens[3] != NULL) {
+			errorMessage(tokens[0], 12);
 		}
 
 		else if(tokens[1]==NULL){
@@ -295,7 +303,7 @@ void commandCheck(char * tokens[]){
 		
 	else if (strcmp(tokens[0], "unalias") == 0) {
 		if (tokens[1] == NULL || tokens[2] != NULL) {
-			errorMessage(tokens[0], 12);
+			errorMessage(tokens[0], 15);
 		
 		} else {
 			removeAlias(tokens);	
@@ -443,40 +451,84 @@ int commandExists(int commandno){
 			ret=1;
 		}
 	}
+	if(commandno == 0) {
+		ret = 0;
+	}
 	return ret;
 }
 
 /* histerror() is a function that takes in an error number and displays the appopriate error message for errors relating to commands starting with !*/
 void errorMessage(char * token, int eno){
-	errno=EINVAL;
-	perror(token);
 	switch(eno){
-		case 1:printf("Please use !<no> with a valid <no> and no parameters. Use: !<no>\n");
-		break;
-		case 2:printf("Please use !-<no> with a valid <no> and no parameters. Use: !-<no>\n");
-		break;
-		case 3:printf("Please use !! without any parameters. Use: !!\n");
-		break;
-		case 4:printf("No commands entered yet, Please enter atleast one command to use !!.\n");
-		break;
-		case 5:printf("Please use getpath without parameters. Use: getpath.\n");
-		break;
-		case 6:printf("Please use setpath with only one parameter. Use: setpath <path>.\n");
-		break;
-		case 7:printf("Please use cd with one parameter or no parameters. Use: cd or cd <directory>.\n");
-		break;
-		case 8:printf("Please use exit without any parameters. Use: exit.\n");
-		break;
-		case 9:printf("Please use history without any parameters. Use: history.\n");
-		break;
-		case 10:printf("Please use alias with two parameters or use alias without any parameters to print aliases.. Use: alias <name> <command> or alias.\n");
-		break;
-		case 11:printf("Only 10 aliases allowed.Please unalias a command to alias a new command\n");
-		break;
-		case 12:printf("Please use unalias with a command that exists. Use: unalias <command>\n");
-		break;
-		default: printf("Invalid error number.\n");
-		break;
+			
+		case 1: fprintf(stderr, "%s : %s", token , "Invalid Parameters\n");
+			printf("Please use getpath without parameters. Use: getpath.\n");
+			break;
+
+		case 2: fprintf(stderr, "%s : %s", token , "Invalid Parameters\n");
+			printf("Please use setpath with only one parameter. Use: setpath <path>.\n");
+			break;
+
+		case 3: fprintf(stderr, "%s : %s", token , "Invalid Parameters\n");
+			printf("Please use cd with one parameter or no parameters. Use: cd or cd <directory>.\n");
+			break;
+
+		case 4: fprintf(stderr, "%s : %s", token , "Invalid Parameters\n");
+			printf("Please use exit without any parameters. Use: exit.\n");
+			break;
+	
+		case 5: fprintf(stderr, "%s : %s", token , "Invalid Parameters\n");
+			printf("Please use !-<no> without any parameters. Use: !-<no>.\n");
+			break;
+
+		case 6: fprintf(stderr, "%s : %s", token , "Invalid Number\n");
+			printf("Please use !-<no> with a valid <no>. Use: !-<no>.\n");
+			break;
+
+		case 7: fprintf(stderr, "%s : %s", token , "Invalid Parameters\n");
+			printf("Please use !! without any parameters. Use: !!\n");
+			break;
+
+		case 8: fprintf(stderr, "%s : %s", token , "Empty History\n");
+			printf("Please enter at least one command to use !!. Use: !!\n");
+			break;
+
+		case 9: fprintf(stderr, "%s : %s", token , "Invalid Parameters\n");
+			printf("Please use !<no> without any parameters. Use: !<no>.\n");
+			break;
+		
+		case 10: fprintf(stderr, "%s : %s", token , "Invalid Number\n");
+			printf("Please use !<no> with a valid <no>. Use: !<no>.\n");
+			break;
+
+		case 11: fprintf(stderr, "%s : %s", token , "Invalid Parameters\n");
+			printf("Please use history without any parameters. Use: history.\n");
+		  	break;
+
+		case 12: fprintf(stderr, "%s : %s", token , "Invalid Parameters\n");
+			printf("Please use alias with two parameters or use alias without any parameters to print aliases. Use: alias <name> <command> or alias.\n");
+		  	break;
+
+		case 13: fprintf(stderr, "%s : %s", token , "Invalid Alias\n");
+			printf("Alias name must not be identical to command.\n");
+			break;
+
+		case 14:fprintf(stderr, "%s : %s", token, "Aliases are full\n");
+			printf("Please remove an alias before adding a new alias.\n");
+			break;
+			
+		case 15: fprintf(stderr, "%s : %s", token , "Invalid Parameters\n");
+			printf("Please use unalias with one parameter. Use: unalias <name>.\n");
+			break;
+
+		case 16: fprintf(stderr, "%s : %s", token , "Alias does not exist\n");
+			printf("Please use unalias on an alias name that exists. Use: unalias <name>.\n");
+			break;
+
+		default: printf("Invalid error number\n");
+			break;
+
+	
 	}
 }
 
@@ -496,7 +548,7 @@ void endShell(){
 /* addAlias() is a function which add an alias*/
 void addAlias(char * tokens[]){
 	if(aliasCount>=ALIAS_SIZE){
-		errorMessage(tokens[0],11);
+		errorMessage(tokens[0],14);
 	}else{
 		strcpy(aliases[aliasCount].aliasName,tokens[1]);
 		int commandIndex = 2;	
@@ -532,9 +584,11 @@ void removeAlias(char *tokens[]) {
 	if(index>=0){
 		strcpy(aliases[index].aliasName,"");
 		strcpy(aliases[index].aliasCommand,"");
+		adjustAliasArray(index);
+		aliasCount--;
+	} else {
+		errorMessage(tokens[0], 16);
 	}
-	adjustAliasArray(index);
-	aliasCount--;
 }
 
 /* */
@@ -559,5 +613,4 @@ void adjustAliasArray(int index){
 	strcpy(aliases[aliasCount-1].aliasCommand,"");
 }
 
-/* Check for !0 */
 
