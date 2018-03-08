@@ -7,6 +7,9 @@
 #include <sys/wait.h>
 
 #define BUFFER_SIZE 512
+#define TOKEN_SIZE 50
+#define HISTORY_SIZE 20
+#define ALIAS_SIZE 10
 
 void parseInput(char *input);
 void externalCommandexec(char * tokens[]);
@@ -25,35 +28,37 @@ int getPow(int a, int b);
 int isDigit(char *tokens[]);
 void saveHistory();
 void loadHistory();
-void addtoHistory(char * input);
 int getNum(char *token, int a);
 int commandExists(int commandno);
 void errorMessage(char * token, int eno);
 void startShell();
 void endShell();
-void addAlias(char *tokens[]);
+void addAlias(char * tokens[]);
 void printAliases();
 void removeAlias(char *tokens[]);
-void shiftArray();
+int checkAlias(char * token);
+int checkNullAlias(int index);
+void adjustAliasArray(int index);
 
 char* path;
 const char* home;
-int count = 0;
-int historycount = 0;
-int aliasCount = 0;
 
-struct hist {
+int count = 0; // arraycount
+int historycount = 0; //current history number
+int aliasCount = 0; // alias count
+
+typedef struct {
 	int commandNumber;
 	char string[BUFFER_SIZE];
-};
+}hist;
 
-struct alias {
+typedef struct {
 	char aliasName[BUFFER_SIZE];
 	char aliasCommand[BUFFER_SIZE];
-};
+}alias;
 
-struct hist history[20];
-struct alias aliases[20];
+hist history[HISTORY_SIZE];
+alias aliases[ALIAS_SIZE];
 
 /* main() calls the method setHome() and runShell() */
 int main(void){
@@ -66,7 +71,7 @@ int main(void){
 void parseInput(char *input){
 	int position=0;
 	char *token;
-	char * tokenarray[50];
+	char * tokenarray[TOKEN_SIZE];
 	token=strtok(input," |><&\t\n;");
 
 	while(token != NULL){
@@ -74,10 +79,11 @@ void parseInput(char *input){
 		token = strtok(NULL," |><&\t\n;");
 		position++;
 	}
-    
+
 	for(int i=position;i<50;i++){
 		tokenarray[i]=NULL;
 	}
+    
     if (tokenarray[0] != NULL) {
         commandCheck(tokenarray);
     }
@@ -149,7 +155,7 @@ void restorePath() {
 
 /* setHome() sets the current working directory to HOME */
 void setHome() {
-    char directory[512];
+    char directory[BUFFER_SIZE];
     path = getenv("PATH");
     home = getenv("HOME");
     
@@ -165,13 +171,15 @@ void setHome() {
 
 /* commandCheck() is a function to check what command the user has input */
 void commandCheck(char * tokens[]){
+
+	
 	
 	/* Calls the function getPath() if correct arguments are provided else displays error */
 	if(strcmp(tokens[0],"getpath")==0){
 		if (tokens[1]==NULL){
 			getPath();
 		}else{
-			errorMessage(tokens[0],5);
+			errorMessage(tokens[0],1);
 		}
 	}
 
@@ -180,7 +188,7 @@ void commandCheck(char * tokens[]){
 		if (tokens[1]!=NULL && tokens[2]==NULL){
 			setPath(tokens[1]);
 		}else{
-			errorMessage(tokens[0],6);
+			errorMessage(tokens[0],2);
 		}
 	}
 	
@@ -189,7 +197,7 @@ void commandCheck(char * tokens[]){
 		if(tokens[2]==NULL){
 			changeDirectory(tokens);
 		}else{
-			errorMessage(tokens[0],7);
+			errorMessage(tokens[0],3);
 		}	
 	}
 
@@ -198,7 +206,7 @@ void commandCheck(char * tokens[]){
 		if(tokens[1]==NULL){
 			endShell();
 		}else{
-			errorMessage(tokens[0],8);
+			errorMessage(tokens[0],4);
 		}
 
 	}
@@ -211,16 +219,16 @@ void commandCheck(char * tokens[]){
 			if(isDigit(tokens)==1){
 				if(tokens[1]==NULL){
 					int sum = getNum(tokens[0],2);
-					if(commandExists(historycount-sum)==1){
-						executeHistory(historycount-sum);
+					if(commandExists(historycount-sum+1)==1){
+						executeHistory(historycount-sum+1);
 					}else{
-						errorMessage(tokens[0],2);
+						errorMessage(tokens[0],6);
 					}
 				}else{
-					errorMessage(tokens[0],2);
+					errorMessage(tokens[0],5);
 				}
 			}else{
-				errorMessage(tokens[0],2);
+				errorMessage(tokens[0],5);
 			}
 		}
 
@@ -230,17 +238,17 @@ void commandCheck(char * tokens[]){
 				if(historycount>0){
 					executeHistory(historycount);
 				}else{
-					errorMessage(tokens[0],4);
+					errorMessage(tokens[0],8);
 				}
 			}else{
-				errorMessage(tokens[0],3);
+				errorMessage(tokens[0],7);
 			}
 				
 		}
 
 		/* checks if the second token is NULL */
 		else if (tokens[0][1]=='\0'){
-			errorMessage(tokens[0],1);
+			errorMessage(tokens[0],9);
 		}
 
 		else{
@@ -250,13 +258,13 @@ void commandCheck(char * tokens[]){
 					if(commandExists(sum)==1){
 						executeHistory(sum);
 					}else{
-						errorMessage(tokens[0],1);
+						errorMessage(tokens[0],10);
 					}
 				}else{
-					errorMessage(tokens[0],1);
+					errorMessage(tokens[0],9);
 				}
 			}else{
-				errorMessage(tokens[0],1);
+				errorMessage(tokens[0],9);
 			}
 		}	
 
@@ -267,33 +275,39 @@ void commandCheck(char * tokens[]){
 		if(tokens[1]==NULL){
 			printHistory();
 		}else{
-			errorMessage(tokens[0],9);
+			errorMessage(tokens[0],11);
 		}
 		
 	}
 
 	/* Checks whether the first command is alias and if there are appropriate parameters */
 	else if(strcmp(tokens[0], "alias") == 0){
-		if(tokens[1] == NULL || tokens[2] == NULL || tokens[3] != NULL){
-			errorMessage(tokens[0], 10);
-		}
-		else{
-			addAlias(tokens);
-		}
-	}
-	
-	/* Checks whether the first command is printalias and if there are appropriate parameters. */
-	else if(strcmp(tokens[0], "printaliases") == 0){
-		if (tokens[1] != NULL) {
+
+		if(tokens[1]!=NULL && tokens[2] == NULL){
 			errorMessage(tokens[0], 12);
-		} else {
+		} 
+
+		else if(tokens[1]==NULL){
 			printAliases();
-		}	
+		}
+
+		else if(tokens[1]!=NULL && tokens[2]!=NULL && tokens[3] != NULL){
+				errorMessage(tokens[0], 12);		
+		}
+
+		else if(tokens[1] != NULL && tokens[2]!=NULL && tokens[3] == NULL){
+			if(strcmp(tokens[1], tokens[2]) == 0){
+				errorMessage(tokens[0], 13);
+			}else{
+				addAlias(tokens);
+			}
+		}
+
 	}
 		
 	else if (strcmp(tokens[0], "unalias") == 0) {
 		if (tokens[1] == NULL || tokens[2] != NULL) {
-			errorMessage(tokens[0], 13);
+			errorMessage(tokens[0], 15);
 		
 		} else {
 			removeAlias(tokens);	
@@ -301,6 +315,8 @@ void commandCheck(char * tokens[]){
 	
 
 	}
+
+
 	/* If the command fails to be recognised as an inbuilt command externalCommandexec() is called with the command */
 	else{
 		externalCommandexec(tokens);	
@@ -321,18 +337,18 @@ void createHistory(char * input){
 		strcpy(history[count].string, input);
 		history[count].commandNumber = historycount+1;
        		historycount++;
-		count=(count+1)%20;
+		count=(count+1)%HISTORY_SIZE;
 }
 
 /* printHistory() is function which contents of the array of structs */
 void printHistory(){
 	int small=history[0].commandNumber;
-	for(int i=0;i<20;i++){
+	for(int i=0;i<HISTORY_SIZE;i++){
 		if(history[i].commandNumber<small){
 			small=history[i].commandNumber;
 		}
 	}
-	for(int i = small-1; i < 20; i++){
+	for(int i = small-1; i < HISTORY_SIZE; i++){
 		if (history[i].commandNumber != 0) {
 			printf("%d %s", history[i].commandNumber, history[i].string);
 			if(strchr(history[i].string, '\n') == NULL){
@@ -352,9 +368,11 @@ void printHistory(){
 
 /* executeHistory() is a function that takes a commandNum and executes the commandNum from history*/
 void executeHistory(int commandNum){
-    for(int i = 0; i < 20; i++){
+    for(int i = 0; i < HISTORY_SIZE; i++){
         if(history[i].commandNumber == commandNum){
-            parseInput(history[i].string);
+			char input_copy[BUFFER_SIZE];
+			strcpy(input_copy, history[i].string);
+            parseInput(input_copy);
         }
     }
 }
@@ -394,20 +412,6 @@ int isDigit(char * tokens[]){
 	return isdigit;
 }
 
-/* addtoHistory() is a function that takes a char pointer and adds it to history */
-void addtoHistory(char * input){
-	if(input!=NULL){
-		char * commandnum = strtok(input," ");
-		int cn = getNum(commandnum,0);
-		char * str = strtok(NULL," ");
-		strcpy(history[count].string, str);
-		history[count].commandNumber = cn;
-		historycount=cn;
-		count=(count+1)%20;
-	}
-	
-}
-
 /* saveHistory() is a function to save the history to a .hist_list file */
 void saveHistory(){
 	chdir(home);
@@ -415,7 +419,7 @@ void saveHistory(){
 	if(file==NULL){
 		return;
 	}
-	for(int i = count; i<20; i++){
+	for(int i = count; i<HISTORY_SIZE; i++){
 		if(history[i].string!=NULL){
 			fprintf(file, "%s",history[i].string);
 		}
@@ -425,7 +429,7 @@ void saveHistory(){
 			fprintf(file, "%s",history[i].string);
 		}
 	}
-	printf("Saving File\n");
+	printf("Saving history to .hist_list file\n");
 	fclose(file);
 }
 
@@ -434,7 +438,7 @@ void loadHistory(){
 	FILE *file ;
 	char string[BUFFER_SIZE];
 	if((file = fopen(".hist_list", "r")) == NULL){
-		printf("File not present. Creating new file.\n");
+		printf("No .hist_list found. New .hist_list file being created.\n");
 	}
 	else{
 		while(1){
@@ -450,47 +454,89 @@ void loadHistory(){
 /* commandExists() is a function which checks whether a given number is a valid command in history*/
 int commandExists(int commandno){
 	int ret=0;
-	for(int i=0;i<20;i++){
+	for(int i=0;i<HISTORY_SIZE;i++){
 		if(history[i].commandNumber==commandno){
 			ret=1;
 		}
+	}
+	if(commandno == 0) {
+		ret = 0;
 	}
 	return ret;
 }
 
 /* histerror() is a function that takes in an error number and displays the appopriate error message for errors relating to commands starting with !*/
 void errorMessage(char * token, int eno){
-	errno=EINVAL;
-	perror(token);
 	switch(eno){
-		case 1:printf("Please use !<no> with a valid <no> and no parameters. Use: !<no>\n");
-		break;
-		case 2:printf("Please use !-<no> with a valid <no> and no parameters. Use: !-<no>\n");
-		break;
-		case 3:printf("Please use !! without any parameters. Use: !!\n");
-		break;
-		case 4:printf("No commands entered yet, Please enter atleast one command to use !!.\n");
-		break;
-		case 5:printf("Please use getpath without parameters. Use: getpath.\n");
-		break;
-		case 6:printf("Please use setpath with only one parameter. Use: setpath <path>.\n");
-		break;
-		case 7:printf("Please use cd with one parameter or no parameters. Use: cd or cd <directory>.\n");
-		break;
-		case 8:printf("Please use exit without any parameters. Use: exit.\n");
-		break;
-		case 9:printf("Please use history without any parameters. Use: history.\n");
-		break;
-		case 10:printf("Please use alias with two parameters. Use: alias <name> <command>.\n");
-		break;
-		case 11:printf("Only 20 aliases allowed.Please unalias a command to alias a new command\n");
-		break;
-		case 12:printf("Please use printaliases without any parameters. Use: printaliases\n");
-		break;
-		case 13:printf("Please use unalias with a command that exists. Use: unalias <command>\n");
-		break;
-		default: printf("Invalid error number.\n");
-		break;
+			
+		case 1: fprintf(stderr, "%s : %s", token , "Invalid Parameters\n");
+			printf("Please use getpath without parameters. Use: getpath.\n");
+			break;
+
+		case 2: fprintf(stderr, "%s : %s", token , "Invalid Parameters\n");
+			printf("Please use setpath with only one parameter. Use: setpath <path>.\n");
+			break;
+
+		case 3: fprintf(stderr, "%s : %s", token , "Invalid Parameters\n");
+			printf("Please use cd with one parameter or no parameters. Use: cd or cd <directory>.\n");
+			break;
+
+		case 4: fprintf(stderr, "%s : %s", token , "Invalid Parameters\n");
+			printf("Please use exit without any parameters. Use: exit.\n");
+			break;
+	
+		case 5: fprintf(stderr, "%s : %s", token , "Invalid Parameters\n");
+			printf("Please use !-<no> without any parameters. Use: !-<no>.\n");
+			break;
+
+		case 6: fprintf(stderr, "%s : %s", token , "Invalid Number\n");
+			printf("Please use !-<no> with a valid <no>. Use: !-<no>.\n");
+			break;
+
+		case 7: fprintf(stderr, "%s : %s", token , "Invalid Parameters\n");
+			printf("Please use !! without any parameters. Use: !!\n");
+			break;
+
+		case 8: fprintf(stderr, "%s : %s", token , "Empty History\n");
+			printf("Please enter at least one command to use !!. Use: !!\n");
+			break;
+
+		case 9: fprintf(stderr, "%s : %s", token , "Invalid Parameters\n");
+			printf("Please use !<no> without any parameters. Use: !<no>.\n");
+			break;
+		
+		case 10: fprintf(stderr, "%s : %s", token , "Invalid Number\n");
+			printf("Please use !<no> with a valid <no>. Use: !<no>.\n");
+			break;
+
+		case 11: fprintf(stderr, "%s : %s", token , "Invalid Parameters\n");
+			printf("Please use history without any parameters. Use: history.\n");
+		  	break;
+
+		case 12: fprintf(stderr, "%s : %s", token , "Invalid Parameters\n");
+			printf("Please use alias with two parameters or use alias without any parameters to print aliases. Use: alias <name> <command> or alias.\n");
+		  	break;
+
+		case 13: fprintf(stderr, "%s : %s", token , "Invalid Alias\n");
+			printf("Alias name must not be identical to command.\n");
+			break;
+
+		case 14:fprintf(stderr, "%s : %s", token, "Aliases are full\n");
+			printf("Please remove an alias before adding a new alias.\n");
+			break;
+			
+		case 15: fprintf(stderr, "%s : %s", token , "Invalid Parameters\n");
+			printf("Please use unalias with one parameter. Use: unalias <name>.\n");
+			break;
+
+		case 16: fprintf(stderr, "%s : %s", token , "Alias does not exist\n");
+			printf("Please use unalias on an alias name that exists. Use: unalias <name>.\n");
+			break;
+
+		default: printf("Invalid error number\n");
+			break;
+
+	
 	}
 }
 
@@ -504,57 +550,76 @@ void startShell(){
 void endShell(){
 	saveHistory();
 	restorePath();
-        exit(0);
+	exit(0);
 }
 
-/* addAlias() is a function to add an alias to the array of alias struct */
-void addAlias(char *tokens[]){
-	if(aliasCount > 20){
-		errorMessage(tokens[0], 11);
-	}
-	else{
+/* addAlias() is a function which add an alias*/
+void addAlias(char * tokens[]){
+	if(aliasCount>=ALIAS_SIZE){
+		errorMessage(tokens[0],14);
+	}else{
 		strcpy(aliases[aliasCount].aliasName,tokens[1]);
-		strcpy(aliases[aliasCount].aliasCommand,tokens[2]);
+		int commandIndex = 2;	
+		while(tokens[commandIndex]!=NULL){
+			strcat(aliases[aliasCount].aliasCommand,tokens[commandIndex]);
+			strcat(aliases[aliasCount].aliasCommand," ");
+			commandIndex++;
+		}
 		aliasCount++;
 	}
+
 }
 
-/* printAliases() is a function that prints all the aliases in the array of alias structs */
+/* printAiases() is a function which prints all the aliases*/
 void printAliases(){
-	for(int i = 0; i < 20; i++){
-		if(strcmp(aliases[i].aliasName, "\0")!=0&&strcmp(aliases[i].aliasCommand, "\0")!=0){
-		printf("%s %s\n" , aliases[i].aliasName, aliases[i].aliasCommand);
-	}
+	for(int i=0;i<ALIAS_SIZE;i++){
+		if(checkNullAlias(i)==0){
+			printf("%s %s \n",aliases[i].aliasName, aliases[i].aliasCommand);
+		}
 	}
 }
 
-/* removeAlias() is a function that removes an alias. */
+/* checkNullAlias() is a function which checks if the current alias is empty */
+int checkNullAlias(int index){
+	if(strcmp(aliases[index].aliasName,"\0")==0 && strcmp(aliases[index].aliasCommand,"\0")==0 ){
+		return 1;
+	}
+	return 0;
+}
+
+/* removeAlias() is a function which removes the chosen alias */
 void removeAlias(char *tokens[]) {
-	
-	for(int i = 0; i < 20; i++) {
-		if (strcmp(tokens[0], aliases[i].aliasCommand) == 0) {
-			strcpy(aliases[i].aliasName,"\0");
-			strcpy(aliases[i].aliasCommand,"\0");
-			shiftArray();
-			
-		}
+	int index = checkAlias(tokens[1]);
+	if(index>=0){
+		strcpy(aliases[index].aliasName,"");
+		strcpy(aliases[index].aliasCommand,"");
+		adjustAliasArray(index);
+		aliasCount--;
+	} else {
+		errorMessage(tokens[0], 16);
 	}
 }
 
-void shiftArray(){
-	struct alias temp[20];
-	for(int i=0;i<20;i++){
-		if(strcmp(aliases[i].aliasName, "\0")!=0&&strcmp(aliases[i].aliasCommand, "\0")!=0){
-			strcpy(temp[i].aliasName,aliases[i].aliasName);
-			strcpy(temp[i].aliasCommand,aliases[i].aliasCommand);
-		}else{
-			i--;
+/* */
+int checkAlias(char * token){
+	for(int i =0;i<ALIAS_SIZE;i++){
+		if(strcmp(aliases[i].aliasName,token)==0){
+			return i;
 		}
 	}
-	for(int i=0;i<20;i++){
-		strcpy(aliases[i].aliasName,temp[i].aliasName);
-		strcpy(aliases[i].aliasCommand,temp[i].aliasCommand);
-	}
-	aliasCount--;
+	return -1;
 }
+
+
+/* adjustAliasArray() is function which fixes the array after an alias is deleted by shifting everything after by on position backwards*/
+void adjustAliasArray(int index){
+
+	for(int i=index;i<aliasCount-1; i++){
+		strcpy(aliases[i].aliasName,aliases[i+1].aliasName);
+		strcpy(aliases[i].aliasCommand,aliases[i+1].aliasCommand);
+	}
+	strcpy(aliases[aliasCount-1].aliasName,"");
+	strcpy(aliases[aliasCount-1].aliasCommand,"");
+}
+
 

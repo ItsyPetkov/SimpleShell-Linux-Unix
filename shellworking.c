@@ -79,10 +79,11 @@ void parseInput(char *input){
 		token = strtok(NULL," |><&\t\n;");
 		position++;
 	}
-    
-	for(int i=position;i<TOKEN_SIZE;i++){
+
+	for(int i=position;i<50;i++){
 		tokenarray[i]=NULL;
 	}
+    
     if (tokenarray[0] != NULL) {
         commandCheck(tokenarray);
     }
@@ -170,6 +171,8 @@ void setHome() {
 
 /* commandCheck() is a function to check what command the user has input */
 void commandCheck(char * tokens[]){
+
+	
 	
 	/* Calls the function getPath() if correct arguments are provided else displays error */
 	if(strcmp(tokens[0],"getpath")==0){
@@ -283,22 +286,23 @@ void commandCheck(char * tokens[]){
 		if(tokens[1]!=NULL && tokens[2] == NULL){
 			errorMessage(tokens[0], 12);
 		} 
-		
-		else if(strcmp(tokens[1], tokens[2]) == 0 && tokens[3] == NULL) {
-			errorMessage(tokens[0], 13);
-		}
-
-		else if(tokens[1] != NULL && tokens[2] != NULL && tokens[3] != NULL) {
-			errorMessage(tokens[0], 12);
-		}
 
 		else if(tokens[1]==NULL){
 			printAliases();
 		}
 
-		else{
-			addAlias(tokens);
+		else if(tokens[1]!=NULL && tokens[2]!=NULL && tokens[3] != NULL){
+				errorMessage(tokens[0], 12);		
 		}
+
+		else if(tokens[1] != NULL && tokens[2]!=NULL && tokens[3] == NULL){
+			if(strcmp(tokens[1], tokens[2]) == 0){
+				errorMessage(tokens[0], 13);
+			}else{
+				addAlias(tokens);
+			}
+		}
+
 	}
 		
 	else if (strcmp(tokens[0], "unalias") == 0) {
@@ -311,6 +315,8 @@ void commandCheck(char * tokens[]){
 	
 
 	}
+
+
 	/* If the command fails to be recognised as an inbuilt command externalCommandexec() is called with the command */
 	else{
 		externalCommandexec(tokens);	
@@ -559,6 +565,7 @@ void addAlias(char * tokens[]){
 		}
 		aliasCount++;
 	}
+
 }
 
 /* printAiases() is a function which prints all the aliases*/
