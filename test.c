@@ -416,20 +416,23 @@ int isDigit(char * tokens[]){
 void saveHistory(){
 	chdir(home);
 	FILE *file = fopen(".hist_list","w");
+
 	if(file==NULL){
 		return;
 	}
+
 	for(int i = count; i<HISTORY_SIZE; i++){
 		if(history[i].string!=NULL){
 			fprintf(file, "%s",history[i].string);
 		}
 	}
+
 	for(int i = 0; i < count; i++){
 		if(history[i].string!=NULL){
 			fprintf(file, "%s",history[i].string);
 		}
 	}
-	printf("Saving history to .hist_list file\n");
+	printf("Saving History to .hist_list file...\n");
 	fclose(file);
 }
 

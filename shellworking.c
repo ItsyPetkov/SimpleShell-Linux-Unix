@@ -10,6 +10,29 @@
 #define TOKEN_SIZE 50
 #define HISTORY_SIZE 20
 #define ALIAS_SIZE 10
+#define true 1
+#define false 0
+
+char* path;
+const char* home;
+
+int history_count = 0;
+int aliasCount = 0;
+
+typedef struct {
+	int commandNumber;
+	char string[BUFFER_SIZE];
+}hist;
+
+typedef struct {
+	char aliasName[BUFFER_SIZE];
+	char aliasCommand[BUFFER_SIZE];
+}alias;
+
+typedef int bool;
+
+hist history[HISTORY_SIZE];
+alias aliases[ALIAS_SIZE];
 
 void parseInput(char *input);
 void externalCommandexec(char * tokens[]);
@@ -25,11 +48,11 @@ void createHistory(char * input);
 void printHistory();
 void executeHistory(int commandNum);
 int getPow(int a, int b);
-int isDigit(char *tokens[]);
+bool isDigit(char *tokens[]);
 void saveHistory();
 void loadHistory();
 int getNum(char *token, int a);
-int commandExists(int commandno);
+bool commandExists(int commandno);
 void errorMessage(char * token, int eno);
 void startShell();
 void endShell();
@@ -39,26 +62,8 @@ void removeAlias(char *tokens[]);
 int checkAlias(char * token);
 int checkNullAlias(int index);
 void adjustAliasArray(int index);
-
-char* path;
-const char* home;
-
-int count = 0;
-int historycount = 0;
-int aliasCount = 0;
-
-typedef struct {
-	int commandNumber;
-	char string[BUFFER_SIZE];
-}hist;
-
-typedef struct {
-	char aliasName[BUFFER_SIZE];
-	char aliasCommand[BUFFER_SIZE];
-}alias;
-
-hist history[HISTORY_SIZE];
-alias aliases[ALIAS_SIZE];
+void adjustHistoryArray(char * input);
+bool isHistoryFull();
 
 /* main() calls the method setHome() and runShell() */
 int main(void){
@@ -156,6 +161,7 @@ void restorePath() {
 /* setHome() sets the current working directory to HOME */
 void setHome() {
     char directory[BUFFER_SIZE];
+    // Two Different Functions
     path = getenv("PATH");
     home = getenv("HOME");
     
@@ -163,6 +169,7 @@ void setHome() {
     if (chdir(home) == 0) {
         printf("HOME : %s\n", getcwd(directory, sizeof(directory)));
     } else {
+	// Pass to errorMessage
         perror(home);
 	printf("Could not change working directory to home.");
     }
@@ -172,8 +179,6 @@ void setHome() {
 /* commandCheck() is a function to check what command the user has input */
 void commandCheck(char * tokens[]){
 
-	
-	
 	/* Calls the function getPath() if correct arguments are provided else displays error */
 	if(strcmp(tokens[0],"getpath")==0){
 		if (tokens[1]==NULL){
@@ -216,11 +221,11 @@ void commandCheck(char * tokens[]){
 		
 		/* checks if the second token is - */
 		if(tokens[0][1]=='-'){
-			if(isDigit(tokens)==1){
+			if(isDigit(tokens)==true){
 				if(tokens[1]==NULL){
 					int sum = getNum(tokens[0],2);
-					if(commandExists(historycount-sum+1)==1){
-						executeHistory(historycount-sum+1);
+					if(commandExists(history_count-sum+1)==true){
+						executeHistory(history_count-sum+1);
 					}else{
 						errorMessage(tokens[0],6);
 					}
@@ -235,8 +240,8 @@ void commandCheck(char * tokens[]){
 		/* checks if the second token is ! */
 		else if(tokens[0][1]=='!'){
 			if(tokens[1]==NULL){
-				if(historycount>0){
-					executeHistory(historycount);
+				if(history_count>0){
+					executeHistory(history_count);
 				}else{
 					errorMessage(tokens[0],8);
 				}
@@ -252,10 +257,10 @@ void commandCheck(char * tokens[]){
 		}
 
 		else{
-			if(isDigit(tokens)==1){
+			if(isDigit(tokens)==true){
 				if(tokens[1]==NULL){
 					int sum = getNum(tokens[0],1);
-					if(commandExists(sum)==1){
+					if(commandExists(sum)==true){
 						executeHistory(sum);
 					}else{
 						errorMessage(tokens[0],10);
@@ -334,45 +339,53 @@ void changeDirectory(char *tokens[]){
 
 /* createHistory() takes an input and stores it in the array of structs */
 void createHistory(char * input){
-		strcpy(history[count].string, input);
-		history[count].commandNumber = historycount+1;
-       		historycount++;
-		count=(count+1)%HISTORY_SIZE;
+		if(isHistoryFull()==true){
+			adjustHistoryArray(input);
+		}else{
+			strcpy(history[history_count].string, input);
+			history[history_count].commandNumber = history_count+1;
+			history_count++;
+		}
+
+}
+
+/* */
+void adjustHistoryArray(char * input){
+	for(int i = 0; i < HISTORY_SIZE-1; i++){
+		strcpy(history[i].string, history[i+1].string);
+	}
+	strcpy(history[HISTORY_SIZE-1].string,input);
 }
 
 /* printHistory() is function which contents of the array of structs */
 void printHistory(){
-	int small=history[0].commandNumber;
-	for(int i=0;i<HISTORY_SIZE;i++){
-		if(history[i].commandNumber<small){
-			small=history[i].commandNumber;
-		}
-	}
-	for(int i = small-1; i < HISTORY_SIZE; i++){
-		if (history[i].commandNumber != 0) {
-			printf("%d %s", history[i].commandNumber, history[i].string);
-			if(strchr(history[i].string, '\n') == NULL){
-				printf("\n");	
-			}
-        	}
-	}
-	for (int i = 0;i < small-1; i++) {
+	
+	for (int i = 0;i < HISTORY_SIZE; i++) {
         	if (history[i].commandNumber != 0) {
             		printf("%d %s", history[i].commandNumber, history[i].string);
-			if(strchr(history[i].string, '\n') == NULL){
-				printf("\n");	
-			}
         	}
     	}
+
 }
 
 /* executeHistory() is a function that takes a commandNum and executes the commandNum from history*/
 void executeHistory(int commandNum){
     for(int i = 0; i < HISTORY_SIZE; i++){
         if(history[i].commandNumber == commandNum){
-            parseInput(history[i].string);
+		char input_copy[BUFFER_SIZE];
+		strcpy(input_copy, history[i].string);
+		parseInput(input_copy);
         }
     }
+}
+
+/* */
+bool isHistoryFull(){
+	if(history_count<HISTORY_SIZE){
+		return false;
+	}else{
+		return true;
+	}
 }
 
 /* getNum() is a function to get extract a number from a char pointer from a given index */
@@ -398,13 +411,13 @@ int getPow(int a, int b){
 }
 
 /* isDigit() checks whether the given char array is an array and returns 1 if is a digit and 0 if is not a digit */
-int isDigit(char * tokens[]){
-	int isdigit=0;
+bool isDigit(char * tokens[]){
+	bool isdigit=false;
 	for(int i=1;i<strlen(tokens[0]);i++){
 		if(tokens[0][i]>='0' && tokens[0][i]<='9'){
-			isdigit=1;
+			isdigit=true;
 		}else{
-			isdigit=0;
+			isdigit=false;
 		}
 	}
 	return isdigit;
@@ -417,16 +430,13 @@ void saveHistory(){
 	if(file==NULL){
 		return;
 	}
-	for(int i = count; i<HISTORY_SIZE; i++){
+
+	for(int i = 0; i<HISTORY_SIZE; i++){
 		if(history[i].string!=NULL){
 			fprintf(file, "%s",history[i].string);
 		}
 	}
-	for(int i = 0; i < count; i++){
-		if(history[i].string!=NULL){
-			fprintf(file, "%s",history[i].string);
-		}
-	}
+
 	printf("Saving history to .hist_list file\n");
 	fclose(file);
 }
@@ -450,17 +460,23 @@ void loadHistory(){
 }
 
 /* commandExists() is a function which checks whether a given number is a valid command in history*/
-int commandExists(int commandno){
-	int ret=0;
+bool commandExists(int commandno){
+
+	if(commandno == 0) {
+		return false;
+	}
+
+	if(isHistoryFull()==true && commandno<HISTORY_SIZE){
+		return true;
+	}
+
 	for(int i=0;i<HISTORY_SIZE;i++){
 		if(history[i].commandNumber==commandno){
-			ret=1;
+			return true;
 		}
 	}
-	if(commandno == 0) {
-		ret = 0;
-	}
-	return ret;
+	
+	return false;
 }
 
 /* histerror() is a function that takes in an error number and displays the appopriate error message for errors relating to commands starting with !*/
@@ -616,6 +632,7 @@ void adjustAliasArray(int index){
 		strcpy(aliases[i].aliasName,aliases[i+1].aliasName);
 		strcpy(aliases[i].aliasCommand,aliases[i+1].aliasCommand);
 	}
+
 	strcpy(aliases[aliasCount-1].aliasName,"");
 	strcpy(aliases[aliasCount-1].aliasCommand,"");
 }
