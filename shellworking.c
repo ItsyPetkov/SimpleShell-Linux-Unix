@@ -17,7 +17,7 @@ char* path;
 const char* home;
 
 int history_count = 0;
-int aliasCount = 0;
+int alias_count = 0;
 
 typedef struct {
 	int commandNumber;
@@ -59,11 +59,19 @@ void endShell();
 void addAlias(char * tokens[]);
 void printAliases();
 void removeAlias(char *tokens[]);
-int checkAlias(char * token);
-int checkNullAlias(int index);
+int aliasIndexCheck(char * token);
+bool checkEmptyAlias(int index);
 void adjustAliasArray(int index);
 void adjustHistoryArray(char * input);
 bool isHistoryFull();
+bool isAliasFull();
+bool isHistoryEmpty();
+bool isAliasEmpty();
+void getenvHome();
+void getenvPath();
+void loadAlias();
+void saveAlias();
+void addToAliasArray(char * input);
 
 /* main() calls the method setHome() and runShell() */
 int main(void){
@@ -88,10 +96,26 @@ void parseInput(char *input){
 	for(int i=position;i<50;i++){
 		tokenarray[i]=NULL;
 	}
+
+	int alias_index = aliasIndexCheck(tokenarray[0]);
+
+	if(alias_index != -1){
+		char new_input[BUFFER_SIZE];
+		strcpy(new_input, aliases[alias_index].aliasCommand);
+
+		int index=1;
+		while(tokenarray[index]!=NULL){
+			strcat(new_input, tokenarray[index]);
+			strcat(new_input, " ");
+			index++;
+		} 
+
+		parseInput(new_input);
+	} 
     
-    if (tokenarray[0] != NULL) {
-        commandCheck(tokenarray);
-    }
+    	else if (tokenarray[0] != NULL) {
+        	commandCheck(tokenarray);
+    	}
 }
 
 /* runShell() displays >, takes user input, calls createHistory() and parseInput() */
@@ -109,6 +133,8 @@ void runShell(){
 		if(strcspn(input,"!")!=0 && (input[0] != '\n')){
 			createHistory(input);
 		}
+
+		
 
 		if(input[0] != '\n') {
 			parseInput(input);
@@ -160,20 +186,22 @@ void restorePath() {
 
 /* setHome() sets the current working directory to HOME */
 void setHome() {
-    char directory[BUFFER_SIZE];
-    // Two Different Functions
-    path = getenv("PATH");
-    home = getenv("HOME");
-    
-    
-    if (chdir(home) == 0) {
-        printf("HOME : %s\n", getcwd(directory, sizeof(directory)));
-    } else {
-	// Pass to errorMessage
-        perror(home);
-	printf("Could not change working directory to home.");
-    }
+	char directory[BUFFER_SIZE];
+	if (chdir(home) == 0) {
+		printf("HOME : %s\n", getcwd(directory, sizeof(directory)));
+    	} else {
+		// Pass to errorMessage
+        	perror(home);
+		printf("Could not change working directory to home.");
+    	}
+}
 
+void getenvHome(){
+	home = getenv("HOME");
+}
+
+void getenvPath(){
+    path = getenv("PATH");
 }
 
 /* commandCheck() is a function to check what command the user has input */
@@ -240,7 +268,7 @@ void commandCheck(char * tokens[]){
 		/* checks if the second token is ! */
 		else if(tokens[0][1]=='!'){
 			if(tokens[1]==NULL){
-				if(history_count>0){
+				if(isHistoryEmpty()==false){
 					executeHistory(history_count);
 				}else{
 					errorMessage(tokens[0],8);
@@ -293,15 +321,16 @@ void commandCheck(char * tokens[]){
 		} 
 
 		else if(tokens[1]==NULL){
-			printAliases();
+			if(isAliasEmpty()==true){
+				errorMessage(tokens[0],17);
+			}else{
+				printAliases();
+			}
 		}
 
-		else if(tokens[1]!=NULL && tokens[2]!=NULL && tokens[3] != NULL){
-				errorMessage(tokens[0], 12);		
-		}
 
-		else if(tokens[1] != NULL && tokens[2]!=NULL && tokens[3] == NULL){
-			if(strcmp(tokens[1], tokens[2]) == 0){
+		else if(tokens[1] != NULL && tokens[2]!=NULL){
+			if(strcmp(tokens[1], tokens[2]) == 0 && tokens[3] == NULL){
 				errorMessage(tokens[0], 13);
 			}else{
 				addAlias(tokens);
@@ -425,7 +454,6 @@ bool isDigit(char * tokens[]){
 
 /* saveHistory() is a function to save the history to a .hist_list file */
 void saveHistory(){
-	chdir(home);
 	FILE *file = fopen(".hist_list","w");
 	if(file==NULL){
 		return;
@@ -547,6 +575,14 @@ void errorMessage(char * token, int eno){
 			printf("Please use unalias on an alias name that exists. Use: unalias <name>.\n");
 			break;
 
+		case 17: fprintf(stderr, "%s : %s", token , "No Alias created yet\n");
+			printf("Please use add an alias before using alias. Use: alias.\n");
+			break;
+
+		case 18: fprintf(stderr, "%s : %s", token , "Alias name already exists\n");
+			printf("You cannot have two commands aliased to same name. Please use different <name>. Use: alias <name> <command>.\n");
+			break;
+
 		default: printf("Invalid error number\n");
 			break;
 
@@ -556,30 +592,37 @@ void errorMessage(char * token, int eno){
 
 /* startShell() is a function that sets up by setting the working directory to home and loading the history the shell before runShell() */
 void startShell(){
+	getenvPath();
+	getenvHome();
 	setHome();
 	loadHistory();
+	loadAlias();
 }
 
 /* endShell() is a function that saves the history and restores the path to the original path while starting the shell */
 void endShell(){
+	setHome();
 	saveHistory();
+	saveAlias();
 	restorePath();
 	exit(0);
 }
 
 /* addAlias() is a function which add an alias*/
 void addAlias(char * tokens[]){
-	if(aliasCount>=ALIAS_SIZE){
+	if(isAliasFull()==true){
 		errorMessage(tokens[0],14);
+	}else if(aliasIndexCheck(tokens[1])!=-1){
+		errorMessage(tokens[0],18);
 	}else{
-		strcpy(aliases[aliasCount].aliasName,tokens[1]);
+		strcpy(aliases[alias_count].aliasName,tokens[1]);
 		int commandIndex = 2;	
 		while(tokens[commandIndex]!=NULL){
-			strcat(aliases[aliasCount].aliasCommand,tokens[commandIndex]);
-			strcat(aliases[aliasCount].aliasCommand," ");
+			strcat(aliases[alias_count].aliasCommand,tokens[commandIndex]);
+			strcat(aliases[alias_count].aliasCommand," ");
 			commandIndex++;
 		}
-		aliasCount++;
+		alias_count++;
 	}
 
 }
@@ -587,35 +630,35 @@ void addAlias(char * tokens[]){
 /* printAiases() is a function which prints all the aliases*/
 void printAliases(){
 	for(int i=0;i<ALIAS_SIZE;i++){
-		if(checkNullAlias(i)==0){
-			printf("%s %s \n",aliases[i].aliasName, aliases[i].aliasCommand);
+		if(checkEmptyAlias(i)==false){
+			printf("%s : %s\n",aliases[i].aliasName, aliases[i].aliasCommand);
 		}
 	}
 }
 
-/* checkNullAlias() is a function which checks if the current alias is empty */
-int checkNullAlias(int index){
+/* checkEmptyAlias() is a function which checks if the current alias is empty */
+bool checkEmptyAlias(int index){
 	if(strcmp(aliases[index].aliasName,"\0")==0 && strcmp(aliases[index].aliasCommand,"\0")==0 ){
-		return 1;
+		return true;
 	}
-	return 0;
+	return false;
 }
 
 /* removeAlias() is a function which removes the chosen alias */
 void removeAlias(char *tokens[]) {
-	int index = checkAlias(tokens[1]);
+	int index = aliasIndexCheck(tokens[1]);
 	if(index>=0){
 		strcpy(aliases[index].aliasName,"");
 		strcpy(aliases[index].aliasCommand,"");
 		adjustAliasArray(index);
-		aliasCount--;
+		alias_count--;
 	} else {
 		errorMessage(tokens[0], 16);
 	}
 }
 
 /* */
-int checkAlias(char * token){
+int aliasIndexCheck(char * token){
 	for(int i =0;i<ALIAS_SIZE;i++){
 		if(strcmp(aliases[i].aliasName,token)==0){
 			return i;
@@ -628,13 +671,87 @@ int checkAlias(char * token){
 /* adjustAliasArray() is function which fixes the array after an alias is deleted by shifting everything after by on position backwards*/
 void adjustAliasArray(int index){
 
-	for(int i=index;i<aliasCount-1; i++){
+	for(int i=index;i<alias_count-1; i++){
 		strcpy(aliases[i].aliasName,aliases[i+1].aliasName);
 		strcpy(aliases[i].aliasCommand,aliases[i+1].aliasCommand);
 	}
 
-	strcpy(aliases[aliasCount-1].aliasName,"");
-	strcpy(aliases[aliasCount-1].aliasCommand,"");
+	strcpy(aliases[alias_count-1].aliasName,"");
+	strcpy(aliases[alias_count-1].aliasCommand,"");
+
 }
 
+/* */
+bool isAliasFull(){
+	if(alias_count<ALIAS_SIZE){
+		return false;
+	}else{
+		return true;
+	}
+}
+
+/* */
+bool isHistoryEmpty(){
+	if(history_count > 0){
+		return false;
+	}else{
+		return true;
+	}
+}
+
+/* */
+bool isAliasEmpty(){
+	if(alias_count > 0){
+		return false;
+	}else{
+		return true;
+	}
+}
+
+/* */
+void saveAlias(){
+	FILE *file = fopen(".aliases","w");
+
+	if(file==NULL){
+		return;
+	}
+
+	for(int i = 0; i<ALIAS_SIZE; i++){
+		if(checkEmptyAlias(i)==false){
+			fprintf(file, "%s %s\n",aliases[i].aliasName, aliases[i].aliasCommand);
+		}
+	}
+
+	printf("Saving aliases to .aliases file\n");
+	fclose(file);
+}
+
+/* */
+void loadAlias(){
+	FILE *file ;
+	char string[BUFFER_SIZE];
+	if((file = fopen(".aliases", "r")) == NULL){
+		printf("No .aliases found. New .aliases file being created.\n");
+	}
+	else{
+		while(1){
+			if(fgets(string, BUFFER_SIZE , file)==NULL){
+				break;
+			}
+			addToAliasArray(string);
+		}
+		fclose(file);
+	}
+}
+
+void addToAliasArray(char * input){
+	char * tokenName = strtok(input, " ");
+	char * tokenCommand= strtok(NULL, "\n");
+	
+	strcpy(aliases[alias_count].aliasName,tokenName);
+	strcpy(aliases[alias_count].aliasCommand,tokenCommand);
+	alias_count++;
+}
+
+/* Meaningfull confirmation messages, meaningfull comments, sethome error message during end shell */
 
