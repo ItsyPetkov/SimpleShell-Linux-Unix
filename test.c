@@ -753,5 +753,5 @@ void addToAliasArray(char * input){
 	alias_count++;
 }
 
-/* Meaningfull confirmation messages, meaningfull comments, sethome error message during end shell */
+/* Meaningfull confirmation messages, meaningfull comments, sethome error message during end shell, history out of bounds error, overriding alias name, detect rubbish in alias */
 
