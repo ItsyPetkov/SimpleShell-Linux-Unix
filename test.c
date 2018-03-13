@@ -5,19 +5,19 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/wait.h>
+#include <stdbool.h>
 
 #define BUFFER_SIZE 512
 #define TOKEN_SIZE 50
 #define HISTORY_SIZE 20
 #define ALIAS_SIZE 10
-#define true 1
-#define false 0
 
 char* path;
 const char* home;
 
 int history_count = 0;
 int alias_count = 0;
+int command_detect_count = 0;
 
 typedef struct {
 	int commandNumber;
@@ -29,7 +29,7 @@ typedef struct {
 	char aliasCommand[BUFFER_SIZE];
 }alias;
 
-typedef int bool;
+char * command_detect[10];
 
 hist history[HISTORY_SIZE];
 alias aliases[ALIAS_SIZE];
@@ -75,6 +75,9 @@ void addToAliasArray(char * input);
 bool isDirectoryHome();
 bool checkAliasesContent(char * input);
 void clearAliasesArray();
+void addToCommandDetect(char * token);
+bool checkCircular(char * token);
+void clearCommandDetect();
 
 /* main() calls the method setHome() and runShell() */
 int main(void){
@@ -111,13 +114,18 @@ void parseInput(char *input){
 				strcat(new_input, " ");
 				index++;
 			} 
-			
-			parseInput(new_input);
+
+			if(checkCircular(tokenarray[0])==true){
+				errorMessage(tokenarray[0],20);
+				clearCommandDetect();
+			}else{
+				addToCommandDetect(tokenarray[0]);
+				parseInput(new_input);
+			}
 		} 
     
 
     else if (tokenarray[0] != NULL) {
-	
         commandCheck(tokenarray);
     }
 }
@@ -597,8 +605,8 @@ void errorMessage(char * token, int eno){
 			printf(".aliases file has incorrect format. No aliases loaded.\n");
 			break;
 
-		case 20: fprintf(stderr, "%s : %s", token , "Incorrect Format\n");
-			printf(".hist_list file has incorrect format. No history loaded.\n");
+		case 20: fprintf(stderr, "%s : %s", token , "Circular Dependency Detected\n");
+			printf("Circular Dependency detected. Command not executed.\n");
 			break;
 
 		default: printf("Invalid error number\n");
@@ -782,9 +790,15 @@ void addToAliasArray(char * input){
 	char * tokenName = strtok(input, " ");
 	char * tokenCommand= strtok(NULL, "\n");
 	
+	if(tokenName == NULL || tokenCommand == NULL){
+		errorMessage(".aliases",19);
+	}else{
+
 	strcpy(aliases[alias_count].aliasName,tokenName);
 	strcpy(aliases[alias_count].aliasCommand,tokenCommand);
 	alias_count++;
+
+	}
 }
 
 /* isDirectoryHome() is a function which checks whether the current directory is home and returns true if it is home and false if it is not home */
@@ -817,7 +831,26 @@ void clearAliasesArray(){
 	alias_count = 0;
 }
 
+void addToCommandDetect(char * token){
+	command_detect[command_detect_count]=token;
+	command_detect_count++;
+}
 
+bool checkCircular(char * token){
+	for(int i = 0 ; i< 10 ; i++){
+		if(command_detect[i]!=NULL){
+			if(strcmp(command_detect[i],token)==0){
+				return true;
+			}
+		}
+	}
+	return false;
+}
 
-/* meaningfull comments */
+void clearCommandDetect(){
+	for(int i = 0 ; i< 10 ; i++){
+		command_detect[i] = NULL;
+	}
+	command_detect_count=0;
+}
 
