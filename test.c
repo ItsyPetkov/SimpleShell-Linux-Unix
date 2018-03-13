@@ -72,6 +72,9 @@ void getenvPath();
 void loadAlias();
 void saveAlias();
 void addToAliasArray(char * input);
+bool isDirectoryHome();
+bool checkAliasesContent(char * input);
+void clearAliasesArray();
 
 /* main() calls the method setHome() and runShell() */
 int main(void){
@@ -99,30 +102,30 @@ void parseInput(char *input){
 
 	int alias_index = aliasIndexCheck(tokenarray[0]);
 
-	if(alias_index != -1){
-		char new_input[BUFFER_SIZE];
-		strcpy(new_input, aliases[alias_index].aliasCommand);
-
-		int index=1;
-		while(tokenarray[index]!=NULL){
-			strcat(new_input, tokenarray[index]);
-			strcat(new_input, " ");
-			index++;
+		if(alias_index != -1){
+			char new_input[BUFFER_SIZE];
+			strcpy(new_input, aliases[alias_index].aliasCommand);
+			int index=1;
+			while(tokenarray[index]!=NULL){
+				strcat(new_input, tokenarray[index]);
+				strcat(new_input, " ");
+				index++;
+			} 
+			
+			parseInput(new_input);
 		} 
-
-		parseInput(new_input);
-	} 
     
-    	else if (tokenarray[0] != NULL) {
-        	commandCheck(tokenarray);
-    	}
+
+    else if (tokenarray[0] != NULL) {
+	
+        commandCheck(tokenarray);
+    }
 }
 
 /* runShell() displays >, takes user input, calls createHistory() and parseInput() */
 void runShell(){
 	char input[BUFFER_SIZE];
-	int terminate = 0;
-	while (terminate == 0){
+	while (1){
 		printf(">");
 		memset(input,'\0',BUFFER_SIZE);
 		if (fgets(input,BUFFER_SIZE,stdin)==NULL){
@@ -133,8 +136,6 @@ void runShell(){
 		if(strcspn(input,"!")!=0 && (input[0] != '\n')){
 			createHistory(input);
 		}
-
-		
 
 		if(input[0] != '\n') {
 			parseInput(input);
@@ -196,10 +197,12 @@ void setHome() {
     	}
 }
 
+/*getenvHome() is a function which gets the environment Home */
 void getenvHome(){
 	home = getenv("HOME");
 }
 
+/*getenvPath() is a function which gets the environment Path */
 void getenvPath(){
     path = getenv("PATH");
 }
@@ -334,17 +337,20 @@ void commandCheck(char * tokens[]){
 				errorMessage(tokens[0], 13);
 			}else{
 				addAlias(tokens);
+				printf("Alias added Successfully\n");
 			}
 		}
 
 	}
-		
+
+	/* Checks whether the first command is unalias and if there are appropriate parameters */	
 	else if (strcmp(tokens[0], "unalias") == 0) {
 		if (tokens[1] == NULL || tokens[2] != NULL) {
 			errorMessage(tokens[0], 15);
 		
 		} else {
 			removeAlias(tokens);	
+			printf("Alias removed Successfully\n");
 		}
 	
 
@@ -378,7 +384,7 @@ void createHistory(char * input){
 
 }
 
-/* */
+/* adjustHistoryArray() is a function which ajusts the history array when it is full */
 void adjustHistoryArray(char * input){
 	for(int i = 0; i < HISTORY_SIZE-1; i++){
 		strcpy(history[i].string, history[i+1].string);
@@ -408,7 +414,7 @@ void executeHistory(int commandNum){
     }
 }
 
-/* */
+/* isHistoryFull() is a function which returns true when the history array is full and false when the history array is not full */
 bool isHistoryFull(){
 	if(history_count<HISTORY_SIZE){
 		return false;
@@ -454,7 +460,7 @@ bool isDigit(char * tokens[]){
 
 /* saveHistory() is a function to save the history to a .hist_list file */
 void saveHistory(){
-	FILE *file = fopen(".hist_list","w");
+	FILE *file = fopen(".hist_list","w+");
 	if(file==NULL){
 		return;
 	}
@@ -490,7 +496,7 @@ void loadHistory(){
 /* commandExists() is a function which checks whether a given number is a valid command in history*/
 bool commandExists(int commandno){
 
-	if(commandno == 0) {
+	if(commandno <= 0) {
 		return false;
 	}
 
@@ -498,16 +504,20 @@ bool commandExists(int commandno){
 		return true;
 	}
 
-	for(int i=0;i<HISTORY_SIZE;i++){
-		if(history[i].commandNumber==commandno){
-			return true;
+	else{
+
+		for(int i=0;i<HISTORY_SIZE;i++){
+			if(history[i].commandNumber==commandno){
+				return true;
+			}
 		}
+
 	}
 	
 	return false;
 }
 
-/* histerror() is a function that takes in an error number and displays the appopriate error message for errors relating to commands starting with !*/
+/* errorMessage() is a function that takes in an error number and displays the appopriate error message for errors relating to commands starting with !*/
 void errorMessage(char * token, int eno){
 	switch(eno){
 			
@@ -576,11 +586,19 @@ void errorMessage(char * token, int eno){
 			break;
 
 		case 17: fprintf(stderr, "%s : %s", token , "No Alias created yet\n");
-			printf("Please use add an alias before using alias. Use: alias.\n");
+			printf("Please add an alias before using alias. Use: alias.\n");
 			break;
 
 		case 18: fprintf(stderr, "%s : %s", token , "Alias name already exists\n");
-			printf("You cannot have two commands aliased to same name. Please use different <name>. Use: alias <name> <command>.\n");
+			printf("Alias being overridden with existing alias.\n");
+			break;
+
+		case 19: fprintf(stderr, "%s : %s", token , "Incorrect Format\n");
+			printf(".aliases file has incorrect format. No aliases loaded.\n");
+			break;
+
+		case 20: fprintf(stderr, "%s : %s", token , "Incorrect Format\n");
+			printf(".hist_list file has incorrect format. No history loaded.\n");
 			break;
 
 		default: printf("Invalid error number\n");
@@ -595,13 +613,21 @@ void startShell(){
 	getenvPath();
 	getenvHome();
 	setHome();
+	if(isDirectoryHome()==false){
+		printf("Current Directory is not Home. The directory is being changed to home to load .hist_list and .aliases file from the right location.\n");
+		setHome();
+	}
 	loadHistory();
 	loadAlias();
 }
 
 /* endShell() is a function that saves the history and restores the path to the original path while starting the shell */
 void endShell(){
-	setHome();
+
+	if(isDirectoryHome()==false){
+		printf("Current Directory is not Home. The directory is being changed to home to save .hist_list and .aliases file in right location.\n");
+		setHome();
+	}
 	saveHistory();
 	saveAlias();
 	restorePath();
@@ -612,9 +638,11 @@ void endShell(){
 void addAlias(char * tokens[]){
 	if(isAliasFull()==true){
 		errorMessage(tokens[0],14);
-	}else if(aliasIndexCheck(tokens[1])!=-1){
-		errorMessage(tokens[0],18);
 	}else{
+		if(aliasIndexCheck(tokens[1])!=-1){
+			errorMessage(tokens[0],18);
+			removeAlias(tokens);
+		}
 		strcpy(aliases[alias_count].aliasName,tokens[1]);
 		int commandIndex = 2;	
 		while(tokens[commandIndex]!=NULL){
@@ -657,7 +685,7 @@ void removeAlias(char *tokens[]) {
 	}
 }
 
-/* */
+/* aliasIndexCheck */
 int aliasIndexCheck(char * token){
 	for(int i =0;i<ALIAS_SIZE;i++){
 		if(strcmp(aliases[i].aliasName,token)==0){
@@ -681,7 +709,7 @@ void adjustAliasArray(int index){
 
 }
 
-/* */
+/* isAliasFull() is a function which returns true when the alias array is full and false when the alias array is not full */
 bool isAliasFull(){
 	if(alias_count<ALIAS_SIZE){
 		return false;
@@ -690,7 +718,7 @@ bool isAliasFull(){
 	}
 }
 
-/* */
+/* isHistoryEmpty() is a function which returns true when the history array is empty and false when the history array is not empty */
 bool isHistoryEmpty(){
 	if(history_count > 0){
 		return false;
@@ -699,7 +727,7 @@ bool isHistoryEmpty(){
 	}
 }
 
-/* */
+/* isAliasEmpty() is a function which returns true when the alias array is empty and false when the alias array is not empty */
 bool isAliasEmpty(){
 	if(alias_count > 0){
 		return false;
@@ -708,9 +736,9 @@ bool isAliasEmpty(){
 	}
 }
 
-/* */
+/* saveAlias() is a function which saves the aliases in the .aliases file */
 void saveAlias(){
-	FILE *file = fopen(".aliases","w");
+	FILE *file = fopen(".aliases","w+");
 
 	if(file==NULL){
 		return;
@@ -726,7 +754,7 @@ void saveAlias(){
 	fclose(file);
 }
 
-/* */
+/* saveAlias() is a function which loads the aliases from the .aliases file */
 void loadAlias(){
 	FILE *file ;
 	char string[BUFFER_SIZE];
@@ -738,12 +766,18 @@ void loadAlias(){
 			if(fgets(string, BUFFER_SIZE , file)==NULL){
 				break;
 			}
-			addToAliasArray(string);
+			if(checkAliasesContent(string)==true){
+				addToAliasArray(string);
+			}else{
+				clearAliasesArray();
+				errorMessage(".aliases",19);
+			}
 		}
 		fclose(file);
 	}
 }
 
+/* addToAliasArray() takes a char pointer as a parameter, splits the pointer from the first whitespace and adds the first token to AliasName and everything after to aliasCommand */
 void addToAliasArray(char * input){
 	char * tokenName = strtok(input, " ");
 	char * tokenCommand= strtok(NULL, "\n");
@@ -753,5 +787,37 @@ void addToAliasArray(char * input){
 	alias_count++;
 }
 
-/* Meaningfull confirmation messages, meaningfull comments, sethome error message during end shell, history out of bounds error, overriding alias name, detect rubbish in alias */
+/* isDirectoryHome() is a function which checks whether the current directory is home and returns true if it is home and false if it is not home */
+bool isDirectoryHome(){
+	char directory[BUFFER_SIZE];
+	getcwd(directory, sizeof(directory));
+	if (strcmp(directory,home)==0) {
+		return true;
+    }else{
+		return false;
+	}
+}
+
+/* */
+bool checkAliasesContent(char * input){
+	char * p = strchr(input, ' ');
+	if(p==NULL){
+		return false;
+	}else{
+		return true;
+	}
+}
+
+/* */
+void clearAliasesArray(){
+	for(int i = 0; i<ALIAS_SIZE; i++){
+		strcpy(aliases[i].aliasName,"");
+		strcpy(aliases[i].aliasCommand,"");
+	}
+	alias_count = 0;
+}
+
+
+
+/* meaningfull comments */
 
