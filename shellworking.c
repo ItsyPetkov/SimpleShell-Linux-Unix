@@ -88,9 +88,8 @@ void parseInput(char *input){
 	int position=0;
 	char *token;
 	char * tokenarray[TOKEN_SIZE];
-
 	token=strtok(input," |><&\t\n;");
-	
+
 	while(token != NULL){
 		tokenarray[position]=token;
 		token = strtok(NULL," |><&\t\n;");
@@ -101,9 +100,7 @@ void parseInput(char *input){
 		tokenarray[i]=NULL;
 	}
 
-	if(tokenarray[0]!= NULL){
-	
-		int alias_index = aliasIndexCheck(tokenarray[0]);
+	int alias_index = aliasIndexCheck(tokenarray[0]);
 
 		if(alias_index != -1){
 			char new_input[BUFFER_SIZE];
@@ -116,10 +113,13 @@ void parseInput(char *input){
 			} 
 			
 			parseInput(new_input);
-		} else {
-        		commandCheck(tokenarray);
-    		}
-	}
+		} 
+    
+
+    else if (tokenarray[0] != NULL) {
+	
+        commandCheck(tokenarray);
+    }
 }
 
 /* runShell() displays >, takes user input, calls createHistory() and parseInput() */
@@ -820,4 +820,5 @@ void clearAliasesArray(){
 
 
 /* meaningfull comments */
+
 

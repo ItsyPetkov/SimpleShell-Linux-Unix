@@ -5,12 +5,14 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/wait.h>
-#include <stdbool.h>
+#include <ctype.h>
 
 #define BUFFER_SIZE 512
 #define TOKEN_SIZE 50
 #define HISTORY_SIZE 20
 #define ALIAS_SIZE 10
+#define true 1
+#define false 0
 
 char* path;
 const char* home;
@@ -29,10 +31,12 @@ typedef struct {
 	char aliasCommand[BUFFER_SIZE];
 }alias;
 
-char * command_detect[10];
+typedef int bool;
 
 hist history[HISTORY_SIZE];
 alias aliases[ALIAS_SIZE];
+
+char * command_detect[20];
 
 void parseInput(char *input);
 void externalCommandexec(char * tokens[]);
@@ -75,9 +79,11 @@ void addToAliasArray(char * input);
 bool isDirectoryHome();
 bool checkAliasesContent(char * input);
 void clearAliasesArray();
-void addToCommandDetect(char * token);
-bool checkCircular(char * token);
 void clearCommandDetect();
+bool checkCircular(char * input);
+void printCommandDetect();
+bool isCommandDetectFull();
+void addToCommandDetect(char * input);
 
 /* main() calls the method setHome() and runShell() */
 int main(void){
@@ -88,6 +94,9 @@ int main(void){
 
 /* parseInput() is a function to parse the string into an array */
 void parseInput(char *input){
+	
+	
+		
 	int position=0;
 	char *token;
 	char * tokenarray[TOKEN_SIZE];
@@ -105,29 +114,43 @@ void parseInput(char *input){
 
 	int alias_index = aliasIndexCheck(tokenarray[0]);
 
-		if(alias_index != -1){
+		if (tokenarray[0] != NULL && alias_index == -1) {
+			printf("Here w %s \n", tokenarray[0]);
+			clearCommandDetect();
+        		commandCheck(tokenarray);
+			
+    		}
+
+		else if(alias_index != -1){
+			printf("Here again %s \n", tokenarray[0]);
 			char new_input[BUFFER_SIZE];
 			strcpy(new_input, aliases[alias_index].aliasCommand);
+
 			int index=1;
+
 			while(tokenarray[index]!=NULL){
 				strcat(new_input, tokenarray[index]);
 				strcat(new_input, " ");
 				index++;
 			} 
+			
 
-			if(checkCircular(tokenarray[0])==true){
-				errorMessage(tokenarray[0],20);
+			if(checkCircular(tokenarray[0]) == true){
+				errorMessage(tokenarray[0], 21);
+				clearCommandDetect();
+			}else if(isCommandDetectFull() == true){
+				errorMessage(tokenarray[0], 22);
 				clearCommandDetect();
 			}else{
 				addToCommandDetect(tokenarray[0]);
 				parseInput(new_input);
 			}
+			
+			
 		} 
     
 
-    else if (tokenarray[0] != NULL) {
-        commandCheck(tokenarray);
-    }
+    		
 }
 
 /* runShell() displays >, takes user input, calls createHistory() and parseInput() */
@@ -140,17 +163,19 @@ void runShell(){
 			printf("\n");
 			endShell();
     		}
-
+		
+		
 		if(strcspn(input,"!")!=0 && (input[0] != '\n')){
-			createHistory(input);
+				createHistory(input);
 		}
-
-		if(input[0] != '\n') {
+		
+		if(input[0] != '\n' && input[0] != ' ') {
 			parseInput(input);
 		}
 	}
 	
 }
+
 
 /* externalCommandexec() is a function to execute external commands */
 void externalCommandexec(char * tokens[]){
@@ -605,8 +630,16 @@ void errorMessage(char * token, int eno){
 			printf(".aliases file has incorrect format. No aliases loaded.\n");
 			break;
 
-		case 20: fprintf(stderr, "%s : %s", token , "Circular Dependency Detected\n");
-			printf("Circular Dependency detected. Command not executed.\n");
+		case 20: fprintf(stderr, "%s : %s", token , "Incorrect Format\n");
+			printf(".hist_list file has incorrect format. No history loaded.\n");
+			break;
+
+		case 21: fprintf(stderr, "%s : %s", token , "Circular Dependencies\n");
+			printf("Circular Dependency Detected. Command not executed\n");
+			break;
+
+		case 22: fprintf(stderr, "%s : %s", token , "Maximum Substitutions\n");
+			printf("Maximum Substitutions Performed. Command not executed\n");
 			break;
 
 		default: printf("Invalid error number\n");
@@ -789,15 +822,13 @@ void loadAlias(){
 void addToAliasArray(char * input){
 	char * tokenName = strtok(input, " ");
 	char * tokenCommand= strtok(NULL, "\n");
-	
+
 	if(tokenName == NULL || tokenCommand == NULL){
 		errorMessage(".aliases",19);
 	}else{
-
 	strcpy(aliases[alias_count].aliasName,tokenName);
 	strcpy(aliases[alias_count].aliasCommand,tokenCommand);
 	alias_count++;
-
 	}
 }
 
@@ -831,26 +862,41 @@ void clearAliasesArray(){
 	alias_count = 0;
 }
 
-void addToCommandDetect(char * token){
-	command_detect[command_detect_count]=token;
+void addToCommandDetect(char * input){
+	command_detect[command_detect_count]=input;
 	command_detect_count++;
 }
 
-bool checkCircular(char * token){
-	for(int i = 0 ; i< 10 ; i++){
-		if(command_detect[i]!=NULL){
-			if(strcmp(command_detect[i],token)==0){
-				return true;
-			}
-		}
+void clearCommandDetect(){
+	for(int i = 0 ; i < command_detect_count; i++){
+		strcpy(command_detect[i],"");
+	}
+	command_detect_count = 0;
+}
+
+bool checkCircular(char * input){
+	for(int i = 0 ; i < command_detect_count; i++){
+		if(strcmp(command_detect[i], input)==0){
+			return true;
+		}	
 	}
 	return false;
 }
 
-void clearCommandDetect(){
-	for(int i = 0 ; i< 10 ; i++){
-		command_detect[i] = NULL;
+void printCommandDetect(){
+	for(int i = 0 ; i < command_detect_count; i++){
+		printf("%s \n" , command_detect[i]);	
 	}
-	command_detect_count=0;
 }
+
+bool isCommandDetectFull(){
+	if(command_detect_count < 20 ){
+		return false;
+	}else{
+		return true;
+	}
+}
+
+
+
 
