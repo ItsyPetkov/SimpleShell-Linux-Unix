@@ -6,13 +6,12 @@
 #include <errno.h>
 #include <sys/wait.h>
 #include <ctype.h>
+#include <stdbool.h>
 
 #define BUFFER_SIZE 512
 #define TOKEN_SIZE 50
 #define HISTORY_SIZE 20
 #define ALIAS_SIZE 10
-#define true 1
-#define false 0
 
 char* path;
 const char* home;
@@ -30,8 +29,6 @@ typedef struct {
 	char aliasName[BUFFER_SIZE];
 	char aliasCommand[BUFFER_SIZE];
 }alias;
-
-typedef int bool;
 
 hist history[HISTORY_SIZE];
 alias aliases[ALIAS_SIZE];
@@ -94,19 +91,22 @@ int main(void){
 
 /* parseInput() is a function to parse the string into an array */
 void parseInput(char *input){
-	
-	
 		
 	int position=0;
 	char *token;
 	char * tokenarray[TOKEN_SIZE];
 	token=strtok(input," |><&\t\n;");
-
+	
+	if(token == NULL){
+		return;
+	}
+	
 	while(token != NULL){
 		tokenarray[position]=token;
 		token = strtok(NULL," |><&\t\n;");
 		position++;
 	}
+	
 
 	for(int i=position;i<50;i++){
 		tokenarray[i]=NULL;
@@ -114,26 +114,17 @@ void parseInput(char *input){
 
 	int alias_index = aliasIndexCheck(tokenarray[0]);
 
-		if (tokenarray[0] != NULL && alias_index == -1) {
-			printf("Here w %s \n", tokenarray[0]);
-			clearCommandDetect();
-        		commandCheck(tokenarray);
-			
-    		}
+		if(alias_index != -1){
 
-		else if(alias_index != -1){
-			printf("Here again %s \n", tokenarray[0]);
 			char new_input[BUFFER_SIZE];
 			strcpy(new_input, aliases[alias_index].aliasCommand);
-
 			int index=1;
 
 			while(tokenarray[index]!=NULL){
 				strcat(new_input, tokenarray[index]);
 				strcat(new_input, " ");
 				index++;
-			} 
-			
+			}
 
 			if(checkCircular(tokenarray[0]) == true){
 				errorMessage(tokenarray[0], 21);
@@ -147,10 +138,11 @@ void parseInput(char *input){
 			}
 			
 			
-		} 
-    
-
-    		
+		}else if (tokenarray[0] != NULL) {
+			clearCommandDetect();
+        		commandCheck(tokenarray);
+		}
+			
 }
 
 /* runShell() displays >, takes user input, calls createHistory() and parseInput() */
@@ -158,23 +150,27 @@ void runShell(){
 	char input[BUFFER_SIZE];
 	while (1){
 		printf(">");
+
 		memset(input,'\0',BUFFER_SIZE);
+
 		if (fgets(input,BUFFER_SIZE,stdin)==NULL){
 			printf("\n");
 			endShell();
     		}
-		
-		
+
 		if(strcspn(input,"!")!=0 && (input[0] != '\n')){
-				createHistory(input);
+			createHistory(input);
 		}
 		
-		if(input[0] != '\n' && input[0] != ' ') {
+		if(input[0] != '\n') {
 			parseInput(input);
 		}
+		
 	}
-	
+		
 }
+
+
 
 
 /* externalCommandexec() is a function to execute external commands */
@@ -825,6 +821,7 @@ void addToAliasArray(char * input){
 
 	if(tokenName == NULL || tokenCommand == NULL){
 		errorMessage(".aliases",19);
+		clearAliasesArray();
 	}else{
 	strcpy(aliases[alias_count].aliasName,tokenName);
 	strcpy(aliases[alias_count].aliasCommand,tokenCommand);
@@ -868,8 +865,9 @@ void addToCommandDetect(char * input){
 }
 
 void clearCommandDetect(){
+	char *p = NULL;
 	for(int i = 0 ; i < command_detect_count; i++){
-		strcpy(command_detect[i],"");
+		command_detect[i]=p;
 	}
 	command_detect_count = 0;
 }
